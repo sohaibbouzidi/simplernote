@@ -1,86 +1,19 @@
 # AI Memory & Task Management Platform
 
-A production-ready fullstack platform for AI-agent memory management, task orchestration, structured notes, and external agent integrations.
+A fullstack foundation for AI agent memory, task orchestration, and autonomous workflow management.
 
-Designed as the foundational layer for autonomous AI workflows including planner agents, research agents, coding agents, reviewer agents, and future orchestration systems.
+This repository contains a modular Nuxt 3 frontend, FastAPI backend, PostgreSQL data layer, Redis support, and Docker Compose orchestration.
 
----
+## Architecture
 
-# Features
+- **Frontend:** Nuxt 3, TypeScript, Pinia, TailwindCSS
+- **Backend:** FastAPI, SQLAlchemy, Pydantic, Alembic, JWT Authentication
+- **Database:** PostgreSQL 16
+- **Infra:** Docker, Docker Compose, Redis
 
-## Core Features
+## Project Layout
 
-* User authentication
-* Project management
-* Structured notes system
-* Task & subtask management
-* Kanban workflow
-* API key management
-* Activity logs
-* Markdown notes
-* Tags & filtering
-* REST API architecture
-* Dockerized setup
-
----
-
-# AI-Agent Ready Architecture
-
-The platform is designed to support future autonomous AI workflows:
-
-```text id="v3up3j"
-User Prompt
-    ↓
-Planner Agent
-    ↓
-Memory Retrieval
-    ↓
-Research Agent
-    ↓
-Coding Agent
-    ↓
-Reviewer Agent
-    ↓
-Task + Notes Updates
-```
-
-External agents can securely communicate through API keys.
-
----
-
-# Tech Stack
-
-## Frontend
-
-* Nuxt 3
-* TypeScript
-* Pinia
-* TailwindCSS
-* ShadCN Vue
-
-## Backend
-
-* FastAPI
-* SQLAlchemy
-* Pydantic
-* Alembic
-* JWT Authentication
-
-## Database
-
-* PostgreSQL 16
-
-## Infrastructure
-
-* Docker
-* Docker Compose
-* Redis (future workflows)
-
----
-
-# Project Structure
-
-```text id="7k8n6z"
+```text
 apps/
 ├── frontend/
 ├── backend/
@@ -89,115 +22,94 @@ apps/
 └── scripts/
 ```
 
----
+## Run Locally
 
-# Main Modules
+1. Copy environment templates:
 
-## Projects
-
-Projects isolate:
-
-* notes
-* tasks
-* memories
-* logs
-
----
-
-# Notes
-
-Supports:
-
-* markdown editor
-* note types
-* tagging
-* search
-* structured memory
-
-Example note types:
-
-* memory
-* decision
-* research
-* issue
-* workflow
-* architecture
-
----
-
-# Tasks
-
-Supports:
-
-* subtasks
-* kanban workflow
-* priorities
-* task hierarchy
-* agent assignment
-
-Workflow example:
-
-```text id="dh7jwf"
-TODO → RESEARCH → CODING → REVIEW → DONE
+```bash
+cp apps/backend/.env.example apps/backend/.env
+cp docker/.env.example docker/.env
 ```
 
----
+2. Start services:
 
-# API Keys
-
-Secure API keys allow external systems and AI agents to:
-
-* create tasks
-* store notes
-* update workflows
-* retrieve memories
-
-Example:
-
-```http id="pud9b3"
-Authorization: Bearer sk_xxxxx
-```
-
----
-
-# Development Setup
-
-## Requirements
-
-* Docker
-* Docker Compose
-
----
-
-# Start Development Environment
-
-```bash id="9aw3e0"
+```bash
 docker compose up --build
 ```
 
----
+3. Access the app:
 
-# Frontend
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000`
+- Health check: `http://localhost:8000/health`
 
-```text id="o5rzew"
-http://localhost:3000
+## Backend API
+
+### Auth
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+
+### Projects
+- `GET /api/projects`
+- `POST /api/projects`
+- `GET /api/projects/{id}`
+- `PATCH /api/projects/{id}`
+- `DELETE /api/projects/{id}`
+
+### Notes
+- `GET /api/notes`
+- `POST /api/notes`
+- `GET /api/notes/{id}`
+- `PATCH /api/notes/{id}`
+- `DELETE /api/notes/{id}`
+
+### Tasks
+- `GET /api/tasks`
+- `POST /api/tasks`
+- `GET /api/tasks/{id}`
+- `PATCH /api/tasks/{id}`
+- `DELETE /api/tasks/{id}`
+
+### API Keys
+- `GET /api/api-keys`
+- `POST /api/api-keys`
+- `DELETE /api/api-keys/{id}`
+
+### Activity Logs
+- `GET /api/activity-logs`
+
+## API Key Authentication
+
+External agents can authenticate using bearer API keys:
+
+```http
+Authorization: Bearer sk_<key-id>.<secret>
 ```
 
----
+## Features
 
-# Backend API
+- JWT authentication with refresh tokens
+- Project, note, task, and activity log management
+- API key creation and permission support
+- Modular repository/service architecture
+- Dockerized backend/frontend/PostgreSQL/Redis stack
+- Future-ready design for AI agents, pgvector, and RAG
 
-```text id="d2j4e5"
-http://localhost:8000
-```
+## Notes
 
----
+- UUID primary keys and UTC timestamps are used throughout the backend.
+- Notes support markdown content, tags, types, and metadata.
+- Tasks support subtasks, hierarchies, statuses, and priorities.
+- API keys are hashed and shown only once during creation.
 
-# Planned Features
+## Future Improvements
 
-## Phase 2
+- pgvector embeddings and semantic search
+- LangGraph / AI orchestration integration
+- Advanced kanban drag-and-drop
+- Memory retrieval and RAG pipelines
 
-* pgvector integration
 * embeddings
 * semantic search
 * AI memory retrieval
