@@ -1,16 +1,18 @@
-from pydantic import BaseModel, Field
+from datetime import datetime
+from uuid import UUID
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict
 
 
 class TaskBaseSchema(BaseModel):
-    project_id: str
-    parent_task_id: Optional[str] = None
+    project_id: UUID
+    parent_task_id: Optional[UUID] = None
     title: str
     description: Optional[str] = None
     status: str = Field(default="todo", pattern="^(todo|planning|research|coding|review|testing|done|blocked)$")
     priority: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
     assigned_agent: Optional[str] = None
-    metadata_: Dict[str, object] = Field(default_factory=dict, alias="metadata")
+    meta: Dict[str, object] = Field(default_factory=dict)
 
 
 class TaskCreateSchema(TaskBaseSchema):
@@ -18,19 +20,17 @@ class TaskCreateSchema(TaskBaseSchema):
 
 
 class TaskUpdateSchema(BaseModel):
-    title: Optional[str]
-    description: Optional[str]
-    status: Optional[str]
-    priority: Optional[str]
-    assigned_agent: Optional[str]
-    metadata_: Optional[Dict[str, object]]
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    assigned_agent: Optional[str] = None
+    meta: Optional[Dict[str, object]] = None
 
 
 class TaskSchema(TaskBaseSchema):
-    id: str
-    created_by: str
-    created_at: str
+    id: UUID
+    created_by: UUID
+    created_at: datetime
 
-    class Config:
-        orm_mode = True
-        allow_population_by_field_name = True
+    model_config = ConfigDict(from_attributes=True)

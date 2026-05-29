@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, UUID4
 from typing import Optional
 
 
@@ -8,12 +8,12 @@ class UserCreateSchema(BaseModel):
 
 
 class UserSchema(BaseModel):
-    id: str
+    id: UUID4
     email: EmailStr
     is_active: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class TokenSchema(BaseModel):

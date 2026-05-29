@@ -11,14 +11,31 @@ export const useAuthStore = defineStore("auth", {
     isAuthenticated: (state) => !!state.token,
   },
   actions: {
+    init() {
+      const saved = localStorage.getItem("simplernote_auth")
+      if (saved) {
+        try {
+          const data = JSON.parse(saved)
+          this.token = data.token || ""
+          this.refreshToken = data.refreshToken || ""
+          this.user = data.user || null
+          if (this.token) setAuthToken(this.token)
+        } catch {
+          localStorage.removeItem("simplernote_auth")
+        }
+      }
+    },
     setToken(token: string) {
       this.token = token
       setAuthToken(token)
+      this._persist()
     },
     clear() {
       this.token = ""
       this.refreshToken = ""
       this.user = null
+      setAuthToken("")
+      localStorage.removeItem("simplernote_auth")
     },
     async login(email: string, password: string) {
       const api = getApiInstance()
@@ -26,12 +43,23 @@ export const useAuthStore = defineStore("auth", {
       this.token = response.data.access_token
       this.refreshToken = response.data.refresh_token
       setAuthToken(this.token)
+      this._persist()
     },
     async register(email: string, password: string) {
       const api = getApiInstance()
       const response = await api.post("/auth/register", { email, password })
       this.user = response.data
       return response.data
+    },
+    _persist() {
+      localStorage.setItem(
+        "simplernote_auth",
+        JSON.stringify({
+          token: this.token,
+          refreshToken: this.refreshToken,
+          user: this.user,
+        }),
+      )
     },
   },
 })

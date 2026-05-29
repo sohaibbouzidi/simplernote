@@ -3,6 +3,7 @@ node_modules
 .DS_Store
 dist
 .nuxt
+.output
 .env
 .env.*
 apps/backend/__pycache__

@@ -17,7 +17,7 @@ class Note(Base):
     summary = Column(Text, nullable=True)
     note_type = Column(String(50), nullable=False, default="documentation")
     tags = Column(JSONB, nullable=False, default=list)
-    metadata_ = Column('metadata', JSONB, nullable=False, default=dict)
+    meta = Column('meta', JSONB, nullable=False, default=dict)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

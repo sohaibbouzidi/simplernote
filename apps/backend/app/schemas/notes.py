@@ -1,15 +1,17 @@
-from pydantic import BaseModel, Field
+from datetime import datetime
+from uuid import UUID
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict
 
 
 class NoteBaseSchema(BaseModel):
-    project_id: str
+    project_id: UUID
     title: str
     content: Optional[str] = None
     summary: Optional[str] = None
     note_type: str = Field(default="documentation", pattern="^(memory|decision|research|issue|workflow|architecture|documentation)$")
     tags: List[str] = Field(default_factory=list)
-    metadata_: Dict[str, object] = Field(default_factory=dict, alias="metadata")
+    meta: Dict[str, object] = Field(default_factory=dict)
 
 
 class NoteCreateSchema(NoteBaseSchema):
@@ -17,20 +19,18 @@ class NoteCreateSchema(NoteBaseSchema):
 
 
 class NoteUpdateSchema(BaseModel):
-    title: Optional[str]
-    content: Optional[str]
-    summary: Optional[str]
-    note_type: Optional[str]
-    tags: Optional[List[str]]
-    metadata_: Optional[Dict[str, object]]
+    title: Optional[str] = None
+    content: Optional[str] = None
+    summary: Optional[str] = None
+    note_type: Optional[str] = None
+    tags: Optional[List[str]] = None
+    meta: Optional[Dict[str, object]] = None
 
 
 class NoteSchema(NoteBaseSchema):
-    id: str
-    created_by: str
-    created_at: str
-    updated_at: str
+    id: UUID
+    created_by: UUID
+    created_at: datetime
+    updated_at: datetime
 
-    class Config:
-        orm_mode = True
-        allow_population_by_field_name = True
+    model_config = ConfigDict(from_attributes=True)

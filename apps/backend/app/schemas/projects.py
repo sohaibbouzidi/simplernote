@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from datetime import datetime
+from uuid import UUID
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 
@@ -12,14 +14,13 @@ class ProjectCreateSchema(ProjectBaseSchema):
 
 
 class ProjectUpdateSchema(BaseModel):
-    name: Optional[str]
-    description: Optional[str]
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 
 class ProjectSchema(ProjectBaseSchema):
-    id: str
-    created_by: str
-    created_at: str
+    id: UUID
+    created_by: UUID
+    created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

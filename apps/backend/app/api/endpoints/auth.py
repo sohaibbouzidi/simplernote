@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.rate_limit import rate_limit
 from app.db.session import get_db
 from app.schemas.auth import TokenSchema, UserCreateSchema, UserSchema, TokenRefreshSchema
 from app.services.auth import AuthService
@@ -12,7 +13,11 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=UserSchema)
-def register(user_in: UserCreateSchema, db: Session = Depends(get_db)):
+def register(
+    user_in: UserCreateSchema,
+    db: Session = Depends(get_db),
+    _=Depends(rate_limit(max_requests=10, window_seconds=60)),
+):
     if UserService.get_by_email(db, user_in.email):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
     user = UserService.create_user(db, user_in)
@@ -20,7 +25,11 @@ def register(user_in: UserCreateSchema, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenSchema)
-def login(form_data: UserCreateSchema, db: Session = Depends(get_db)):
+def login(
+    form_data: UserCreateSchema,
+    db: Session = Depends(get_db),
+    _=Depends(rate_limit(max_requests=10, window_seconds=60)),
+):
     user = AuthService.authenticate(db, form_data.email, form_data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")

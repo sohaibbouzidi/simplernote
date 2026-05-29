@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
-from pydantic import AnyHttpUrl, PostgresDsn
+from pydantic import PostgresDsn
 
 
 class Settings(BaseSettings):
@@ -23,9 +23,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440
 
-    API_KEY_SECRET: str
-
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = ["http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000"]
 
 
 @lru_cache()

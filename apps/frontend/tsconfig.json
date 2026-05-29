@@ -1,14 +1,12 @@
 {
-  "extends": "@vue/tsconfig/tsconfig.json",
   "compilerOptions": {
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "bundler",
     "target": "ES2020",
     "strict": true,
     "jsx": "preserve",
     "useDefineForClassFields": true,
     "isolatedModules": true,
-    "types": ["@types/node", "@pinia/nuxt"],
     "paths": {
       "~/*": ["./*"],
       "@/*": ["./*"]

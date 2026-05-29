@@ -18,7 +18,7 @@ class Task(Base):
     status = Column(String(50), nullable=False, default="todo")
     priority = Column(String(50), nullable=False, default="medium")
     assigned_agent = Column(String(128), nullable=True)
-    metadata_ = Column('metadata', JSONB, nullable=False, default=dict)
+    meta = Column('meta', JSONB, nullable=False, default=dict)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 

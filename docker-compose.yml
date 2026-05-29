@@ -44,12 +44,15 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
     environment:
       - NUXT_HOST=0.0.0.0
       - NUXT_PORT=3000
-      - API_BASE_URL=http://backend:8000/api
+      - API_BASE_URL=http://localhost:8000/api
     depends_on:
       - backend
 

@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from "axios"
 import { useRuntimeConfig } from "#app"
+import { useAuthStore } from "@/stores/auth"
 
 let apiInstance: AxiosInstance | null = null
 
@@ -8,9 +9,17 @@ export function getApiInstance() {
     const config = useRuntimeConfig()
     apiInstance = axios.create({
       baseURL: config.public.apiBase,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
+      maxRedirects: 5,
+    })
+    apiInstance.interceptors.request.use((config) => {
+      try {
+        const auth = useAuthStore()
+        if (auth.token) {
+          config.headers.Authorization = `Bearer ${auth.token}`
+        }
+      } catch {}
+      return config
     })
   }
   return apiInstance
