@@ -1,0 +1,252 @@
+# External Memory Rule — Simplernote AI API Integration
+
+You must use the external memory API at `http://localhost:8000/api/` as the persistent memory, task orchestration, and AI knowledge backend for all long-running workflows, planning, coding sessions, debugging, research, and multi-agent execution.
+
+The API acts as the shared memory layer between sessions, agents, and workflows.
+
+---
+
+# CONFIGURATION REQUIREMENTS
+
+Before any API usage, the following must be defined:
+
+```bash id="cfg1"
+SIMPLERNOTE_API_KEY="<API_KEY>"
+PROJECT_ID="<PROJECT_ID>"
+```
+
+### Validation Rule
+
+Before executing ANY API operation:
+
+* If `SIMPLERNOTE_API_KEY` is missing → request it from the user
+* If `PROJECT_ID` is missing → request it from the user
+* If either is missing → stop execution immediately
+* Never proceed with partial configuration
+
+Example prompt:
+
+```text id="cfg2"
+Missing required configuration:
+- SIMPLERNOTE_API_KEY
+- PROJECT_ID
+
+Please provide them before continuing.
+```
+
+---
+
+# AUTHENTICATION
+
+All requests must include:
+
+```http id="auth1"
+Authorization: Bearer <API_KEY>
+Content-Type: application/json
+```
+
+Base URL:
+
+```text id="base1"
+http://localhost:8000/api/
+```
+
+---
+
+# CORE RULES
+
+## 1. Memory-First Execution
+
+Before starting ANY task:
+
+1. Search AI context knowledge base
+2. Retrieve existing notes using PROJECT_ID
+3. Retrieve existing tasks using PROJECT_ID
+4. Reuse existing architecture, research, workflows
+
+Never start from zero if prior context exists.
+
+---
+
+## 2. Notes (Persistent Knowledge)
+
+Always include:
+
+```text id="notes1"
+project_id = <PROJECT_ID>
+```
+
+Use notes for:
+
+* architecture
+* decisions
+* research
+* workflows
+* documentation
+* debugging insights
+* API contracts
+
+---
+
+## 3. Tasks (Workflow State)
+
+Always include:
+
+```text id="tasks1"
+project_id = <PROJECT_ID>
+```
+
+Use tasks for:
+
+* planning
+* execution tracking
+* debugging
+* feature delivery
+* testing
+* blockers
+
+---
+
+## 4. AI Context (Shared Memory Layer)
+
+Endpoint:
+
+```text id="ctx1"
+GET /api/ai-context/search
+```
+
+Purpose:
+
+* semantic memory retrieval
+* session continuity
+* architecture recall
+* cross-agent coordination
+
+Always query before generating plans or code.
+
+---
+
+# REQUIRED EXECUTION FLOW
+
+## Step 1 — Validate Configuration
+
+If missing:
+
+* API key → request user input
+* project_id → request user input
+
+Stop execution if incomplete.
+
+---
+
+## Step 2 — Load Context
+
+```http id="flow1"
+GET /api/ai-context/search?query=<query>
+```
+
+---
+
+## Step 3 — Retrieve Notes
+
+```http id="flow2"
+GET /api/notes?project_id=d0b1c152-4b7c-4b60-a5ee-6ea73374a02d
+```
+
+---
+
+## Step 4 — Retrieve Tasks
+
+```http id="flow3"
+GET /api/tasks?project_id=d0b1c152-4b7c-4b60-a5ee-6ea73374a02d
+```
+
+---
+
+## Step 5 — Execute Work
+
+Perform:
+
+* coding
+* debugging
+* research
+* architecture
+* planning
+
+---
+
+## Step 6 — Persist Results
+
+Always:
+
+* update notes
+* update tasks
+* store decisions
+* maintain workflow continuity
+
+---
+
+# NOTE TYPES
+
+* memory
+* decision
+* research
+* issue
+* workflow
+* architecture
+* documentation
+
+---
+
+# TASK STATUSES
+
+* todo
+* planning
+* research
+* coding
+* review
+* testing
+* done
+* blocked
+
+---
+
+# RATE LIMITING
+
+AI Context:
+
+```text id="rl1"
+30 requests/minute
+```
+
+Use batching and caching.
+
+---
+
+# MULTI-AGENT RULES
+
+All agents must use:
+
+* same API key
+* same PROJECT_ID
+
+Shared responsibilities:
+
+* planner → context + planning
+* researcher → notes
+* coder → implementation
+* reviewer → tasks
+* tester → validation
+
+---
+
+# FAILURE HANDLING
+
+If API fails:
+
+1. continue locally
+2. queue updates
+3. retry later
+4. sync when recovered
+
+Never lose work.

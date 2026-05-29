@@ -57,10 +57,7 @@
         </div>
         <div v-if="!editing">
           <label class="block text-sm font-medium text-white mb-1">Project (optional)</label>
-          <select v-model="form.project_id" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
-            <option value="">No project</option>
-            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
+          <SelectDropdown v-model="form.project_id" :options="projectOptions" placeholder="No project" />
         </div>
         <div class="flex justify-end gap-3 pt-2">
           <button type="button" @click="showModal = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
@@ -72,12 +69,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { getApiInstance } from "@/services/api"
+import { useToast } from "@/composables/useToast"
 
 const api = getApiInstance()
+const toast = useToast()
 const notes = ref<any[]>([])
 const projects = ref<any[]>([])
+const projectOptions = computed(() => projects.value.map((p: any) => ({ value: p.id, label: p.name })))
 const loading = ref(true)
 const error = ref("")
 const showModal = ref(false)
@@ -113,7 +113,7 @@ async function saveNote() {
     if (editing.value) await api.patch(`/notes/${editing.value.id}`, payload)
     else await api.post("/notes", payload)
     showModal.value = false; await fetchNotes()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error saving note") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error saving note") }
 }
 
 onMounted(() => { fetchNotes(); fetchProjects() })

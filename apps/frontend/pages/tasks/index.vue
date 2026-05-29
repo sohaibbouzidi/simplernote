@@ -63,25 +63,16 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-white mb-1">Status</label>
-            <select v-model="form.status" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
-              <option v-for="l in laneOptions" :key="l.key" :value="l.key">{{ l.label }}</option>
-            </select>
+            <SelectDropdown v-model="form.status" :options="statusOptions" />
           </div>
           <div>
             <label class="block text-sm font-medium text-white mb-1">Priority</label>
-            <select v-model="form.priority" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
+            <SelectDropdown v-model="form.priority" :options="priorityOptions" />
           </div>
         </div>
         <div v-if="!editing">
           <label class="block text-sm font-medium text-white mb-1">Project (optional)</label>
-          <select v-model="form.project_id" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
-            <option value="">No project</option>
-            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
+          <SelectDropdown v-model="form.project_id" :options="projectOptions" placeholder="No project" />
         </div>
         <div class="flex justify-end gap-3 pt-2">
           <button type="button" @click="showModal = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
@@ -95,10 +86,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
 import { getApiInstance } from "@/services/api"
+import { useToast } from "@/composables/useToast"
 
 const api = getApiInstance()
+const toast = useToast()
 const tasks = ref<any[]>([])
 const projects = ref<any[]>([])
+const projectOptions = computed(() => projects.value.map((p: any) => ({ value: p.id, label: p.name })))
+const statusOptions = computed(() => laneOptions.map((l: any) => ({ value: l.key, label: l.label })))
+const priorityOptions = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+]
 const loading = ref(true)
 const error = ref("")
 const showModal = ref(false)
@@ -155,7 +155,7 @@ async function saveTask() {
     if (editing.value) await api.patch(`/tasks/${editing.value.id}`, payload)
     else await api.post("/tasks", payload)
     showModal.value = false; await fetchTasks()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error saving task") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error saving task") }
 }
 
 onMounted(() => { fetchTasks(); fetchProjects() })

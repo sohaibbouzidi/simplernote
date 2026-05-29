@@ -1,22 +1,5 @@
-# version: "3.9"
 
 services:
-  postgres:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: simplernote
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7
@@ -40,14 +23,11 @@ services:
     env_file:
       - ./apps/backend/.env
     environment:
-      - DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/simplernote
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/simplernote}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET=${JWT_SECRET:-supersecretchangeme}
       - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-["http://localhost:3000"]}
-      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000/api}
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -67,5 +47,3 @@ services:
         condition: service_started
     restart: unless-stopped
 
-volumes:
-  postgres_data:

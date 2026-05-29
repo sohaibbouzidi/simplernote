@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /build
 COPY package.json package-lock.json* ./
 RUN npm ci --no-audit
@@ -7,7 +7,7 @@ COPY . .
 RUN npm run build
 
 # Runtime stage
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 RUN addgroup -S -g 1001 app && \
     adduser -S -u 1001 -G app app

@@ -70,9 +70,11 @@
 import { ref, computed, onMounted } from "vue"
 import { useRoute } from "#app"
 import { getApiInstance } from "@/services/api"
+import { useToast } from "@/composables/useToast"
 
 const api = getApiInstance()
 const route = useRoute()
+const toast = useToast()
 const projects = ref<any[]>([])
 const loading = ref(true)
 const error = ref("")
@@ -112,7 +114,7 @@ async function saveProject() {
   try {
     await api.post("/projects", form.value)
     showModal.value = false; await fetchProjects()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error saving project") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error saving project") }
 }
 
 onMounted(fetchProjects)

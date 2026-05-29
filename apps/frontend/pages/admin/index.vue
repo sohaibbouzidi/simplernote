@@ -61,8 +61,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
 import { getApiInstance } from "@/services/api"
+import { useToast } from "@/composables/useToast"
 
 const api = getApiInstance()
+const toast = useToast()
 const users = ref<any[]>([])
 const loading = ref(true)
 const error = ref("")
@@ -81,18 +83,18 @@ async function fetchUsers() {
 }
 
 async function promote(id: string) {
-  try { await api.patch(`/admin/users/${id}/role`, { role: "admin" }); await fetchUsers() } catch (e: any) { alert(e?.response?.data?.detail || "Error") }
+  try { await api.patch(`/admin/users/${id}/role`, { role: "admin" }); await fetchUsers() } catch (e: any) { toast.error(e?.response?.data?.detail || "Error") }
 }
 
 async function demote(id: string) {
-  try { await api.patch(`/admin/users/${id}/role`, { role: "user" }); await fetchUsers() } catch (e: any) { alert(e?.response?.data?.detail || "Error") }
+  try { await api.patch(`/admin/users/${id}/role`, { role: "user" }); await fetchUsers() } catch (e: any) { toast.error(e?.response?.data?.detail || "Error") }
 }
 
 function confirmDelete(user: any) { deleting.value = user; showDelete.value = true }
 
 async function deleteUser() {
   if (!deleting.value) return
-  try { await api.delete(`/admin/users/${deleting.value.id}`); showDelete.value = false; deleting.value = null; await fetchUsers() } catch (e: any) { alert(e?.response?.data?.detail || "Error") }
+  try { await api.delete(`/admin/users/${deleting.value.id}`); showDelete.value = false; deleting.value = null; await fetchUsers() } catch (e: any) { toast.error(e?.response?.data?.detail || "Error") }
 }
 
 onMounted(fetchUsers)

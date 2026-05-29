@@ -36,12 +36,14 @@
 import { ref } from "vue"
 import { useRouter, useRoute } from "#app"
 import { useAuthStore } from "@/stores/auth"
+import { useToast } from "@/composables/useToast"
 
 definePageMeta({ layout: false })
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const toast = useToast()
 
 const email = ref("")
 const password = ref("")
@@ -53,7 +55,7 @@ const submit = async () => {
     await router.push(redirect || "/dashboard")
   } catch (error) {
     console.error(error)
-    alert("Login failed. Check your email and password.")
+    toast.error("Login failed. Check your email and password.")
   }
 }
 </script>

@@ -145,24 +145,11 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-white mb-1">Status</label>
-              <select v-model="taskForm.status" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
-                <option value="todo">Todo</option>
-                <option value="in-progress">In Progress</option>
-                <option value="review">Review</option>
-                <option value="blocked">Blocked</option>
-                <option value="done">Done</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="backlog">Backlog</option>
-                <option value="deferred">Deferred</option>
-              </select>
+              <SelectDropdown v-model="taskForm.status" :options="taskStatusOptions" />
             </div>
             <div>
               <label class="block text-sm font-medium text-white mb-1">Priority</label>
-              <select v-model="taskForm.priority" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none">
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+              <SelectDropdown v-model="taskForm.priority" :options="taskPriorityOptions" />
             </div>
           </div>
           <div class="flex justify-end gap-3 pt-2">
@@ -171,6 +158,131 @@
           </div>
         </form>
       </Modal>
+    </div>
+
+    <div v-if="activeTab === 'ai-context'" class="space-y-6">
+      <div class="flex items-center gap-6 border-b border-slate-800">
+        <button
+          v-for="st in aiSubTabs"
+          :key="st.key"
+          @click="aiSubTab = st.key"
+          class="relative pb-3 text-sm font-medium transition-colors"
+          :class="aiSubTab === st.key ? 'text-white' : 'text-slate-400 hover:text-slate-200'"
+        >
+          {{ st.label }}
+          <span v-if="aiSubTab === st.key" class="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-400" />
+        </button>
+        <div v-if="aiRateLimit" class="ml-auto flex items-center gap-1.5 text-xs text-slate-500">
+          <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          {{ aiRateLimit.remaining }}/{{ aiRateLimit.limit }} left
+        </div>
+      </div>
+
+      <div v-if="aiSubTab === 'search'">
+        <div class="mb-4 flex gap-3">
+          <input
+            v-model="aiSearchQuery"
+            @keydown.enter="handleAiSearch"
+            placeholder="Search notes and tasks..."
+            class="flex-1 rounded-lg border border-slate-800 bg-surface px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-brand-500"
+          />
+          <button
+            @click="handleAiSearch"
+            :disabled="!aiSearchQuery.trim()"
+            class="rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Search
+          </button>
+        </div>
+
+        <div v-if="aiSearchLoading" class="flex items-center justify-center py-16">
+          <svg class="h-8 w-8 animate-spin text-brand-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          <span class="ml-3 text-sm text-slate-400">Searching...</span>
+        </div>
+
+        <div v-else-if="aiSearchError" class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <p>{{ aiSearchError }}</p>
+        </div>
+
+        <template v-else-if="aiSearchResults">
+          <div v-if="aiSearchResults.notes.length > 0" class="mb-6">
+            <h2 class="mb-3 text-sm font-semibold text-slate-300 uppercase tracking-wider">Notes ({{ aiSearchResults.notes.length }})</h2>
+            <div class="space-y-2">
+              <div v-for="note in aiSearchResults.notes" :key="note.id" class="rounded-lg border border-slate-800 bg-surface-50 px-4 py-3 transition-colors hover:border-slate-700">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-white">{{ note.title }}</span>
+                  <span class="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-400">{{ note.note_type }}</span>
+                </div>
+                <p class="mt-1 text-sm text-slate-500 line-clamp-1">{{ note.content || note.summary || "No content" }}</p>
+                <div class="mt-1.5 flex items-center gap-3 text-xs text-slate-600">
+                  <span v-if="note.tags?.length" class="flex gap-1">
+                    <span v-for="tag in note.tags.slice(0, 3)" :key="tag" class="text-slate-500">#{{ tag }}</span>
+                    <span v-if="note.tags.length > 3" class="text-slate-600">+{{ note.tags.length - 3 }}</span>
+                  </span>
+                  <span>{{ formatDate(note.created_at) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="aiSearchResults.tasks.length > 0" class="mb-6">
+            <h2 class="mb-3 text-sm font-semibold text-slate-300 uppercase tracking-wider">Tasks ({{ aiSearchResults.tasks.length }})</h2>
+            <div class="space-y-2">
+              <div v-for="task in aiSearchResults.tasks" :key="task.id" class="rounded-lg border border-slate-800 bg-surface-50 px-4 py-3 transition-colors hover:border-slate-700">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-white">{{ task.title }}</span>
+                  <span class="rounded px-1.5 py-0.5 text-xs font-medium" :class="statusBadge(task.status)">{{ task.status }}</span>
+                  <span class="rounded px-1.5 py-0.5 text-xs font-medium" :class="priorityBadge(task.priority)">{{ task.priority }}</span>
+                </div>
+                <p v-if="task.description" class="mt-1 text-sm text-slate-500 line-clamp-1">{{ task.description }}</p>
+                <div class="mt-1.5 text-xs text-slate-600">{{ formatDate(task.created_at) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="aiSearchResults.notes.length === 0 && aiSearchResults.tasks.length === 0" class="py-16 text-center">
+            <p class="text-sm text-slate-500">No results found for <span class="font-mono text-slate-400">"{{ aiLastQuery }}"</span></p>
+          </div>
+        </template>
+
+        <div v-else class="py-16 text-center">
+          <svg class="mx-auto mb-3 h-10 w-10 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          <p class="text-sm text-slate-500">Search this project's notes and tasks</p>
+          <p class="mt-1 text-xs text-slate-600">Enter a query above to find relevant context for your AI agents</p>
+        </div>
+      </div>
+
+      <div v-if="aiSubTab === 'import'">
+        <p class="mb-4 text-sm text-slate-400">Paste JSON below to batch import notes and tasks into this project.</p>
+        <div class="mb-4">
+          <textarea
+            v-model="aiImportJson"
+            @input="aiImportError = ''"
+            rows="12"
+            placeholder='{\n  "notes": [\n    {\n      "title": "My Note",\n      "content": "...",\n      "note_type": "documentation"\n    }\n  ],\n  "tasks": [\n    {\n      "title": "My Task",\n      "status": "todo",\n      "priority": "medium"\n    }\n  ]\n}'
+            class="w-full rounded-lg border border-slate-800 bg-surface px-4 py-3 font-mono text-sm text-white outline-none placeholder:text-slate-700 focus:border-brand-500"
+          ></textarea>
+        </div>
+        <div class="flex items-center gap-4">
+          <label class="cursor-pointer rounded-lg border border-slate-800 bg-surface-50 px-4 py-2 text-sm text-slate-300 transition-colors hover:border-slate-700 hover:text-white">
+            Upload .json
+            <input type="file" accept=".json" @change="handleAiFileUpload" class="hidden" />
+          </label>
+          <button
+            @click="handleAiImport"
+            :disabled="!aiImportJson.trim() || aiImportLoading"
+            class="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span v-if="aiImportLoading" class="flex items-center gap-2">
+              <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              Importing...
+            </span>
+            <span v-else>Import</span>
+          </button>
+          <span v-if="aiImportError" class="text-sm text-red-400">{{ aiImportError }}</span>
+          <span v-else-if="aiImportSuccess" class="text-sm text-green-400">{{ aiImportSuccess }}</span>
+        </div>
+      </div>
     </div>
 
     <div v-if="activeTab === 'settings'" class="max-w-2xl space-y-8">
@@ -272,11 +384,13 @@
 import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "#app"
 import { getApiInstance } from "@/services/api"
+import { useToast } from "@/composables/useToast"
 
 const api = getApiInstance()
 const route = useRoute()
 const router = useRouter()
 const projectId = route.params.id as string
+const toast = useToast()
 
 const project = ref<any | null>(null)
 const loading = ref(true)
@@ -286,10 +400,28 @@ const activeTab = ref("notes")
 const tabs = [
   { key: "notes", label: "Notes", icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>' },
   { key: "tasks", label: "Tasks", icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>' },
+  { key: "ai-context", label: "AI Context", icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>' },
   { key: "settings", label: "Settings", icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>' },
 ]
 
 const settingsForm = ref({ name: "", description: "" })
+
+const taskStatusOptions = [
+  { value: "backlog", label: "Backlog" },
+  { value: "todo", label: "Todo" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "review", label: "Review" },
+  { value: "blocked", label: "Blocked" },
+  { value: "done", label: "Done" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "deferred", label: "Deferred" },
+]
+
+const taskPriorityOptions = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+]
 
 async function fetchProject() {
   try {
@@ -307,7 +439,7 @@ async function saveSettings() {
   try {
     const res = (await api.patch(`/projects/${projectId}`, settingsForm.value)).data
     project.value = res
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error saving project") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error saving project") }
 }
 
 function confirmDeleteProject() { showDeleteProject.value = true }
@@ -317,7 +449,7 @@ async function deleteProject() {
     await api.delete(`/projects/${projectId}`)
     showDeleteProject.value = false
     router.push("/projects")
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error deleting project") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error deleting project") }
 }
 
 const notes = ref<any[]>([])
@@ -355,7 +487,7 @@ async function saveNote() {
     }
     showNoteModal.value = false
     await fetchNotes()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error saving note") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error saving note") }
 }
 
 const tasks = ref<any[]>([])
@@ -414,7 +546,7 @@ async function saveTask() {
     }
     showTaskModal.value = false
     await fetchTasks()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error saving task") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error saving task") }
 }
 
 const keys = ref<any[]>([])
@@ -450,7 +582,7 @@ async function deleteKey() {
   try {
     await api.delete(`/api-keys/${deletingKey.value.id}`)
     showRevokeKey.value = false; deletingKey.value = null; await fetchKeys()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error revoking key") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error revoking key") }
 }
 
 async function createKey() {
@@ -458,7 +590,106 @@ async function createKey() {
     const res = await api.post("/api-keys", { ...keyForm.value, project_id: projectId })
     newKeyValue.value = res.data.plain_text_key
     await fetchKeys()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error creating key") }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error creating key") }
+}
+
+const aiSubTabs = [
+  { key: "search", label: "Search" },
+  { key: "import", label: "Import" },
+]
+const aiSubTab = ref("search")
+const aiSearchQuery = ref("")
+const aiLastQuery = ref("")
+const aiSearchLoading = ref(false)
+const aiSearchError = ref("")
+const aiSearchResults = ref<any | null>(null)
+const aiImportJson = ref("")
+const aiImportLoading = ref(false)
+const aiImportError = ref("")
+const aiImportSuccess = ref("")
+const aiRateLimit = ref<{ limit: number; remaining: number } | null>(null)
+
+async function handleAiSearch() {
+  const q = aiSearchQuery.value.trim()
+  if (!q) return
+  aiLastQuery.value = q
+  aiSearchLoading.value = true
+  aiSearchError.value = ""
+  aiSearchResults.value = null
+  aiRateLimit.value = null
+  try {
+    const res = await api.get(`/ai-context/search?query=${encodeURIComponent(q)}&project_id=${projectId}`)
+    aiSearchResults.value = res.data
+    const limit = parseInt(res.headers["x-ratelimit-remaining"])
+    if (!isNaN(limit)) {
+      aiRateLimit.value = {
+        limit: parseInt(res.headers["x-ratelimit-limit"]) || 30,
+        remaining: limit,
+      }
+    }
+  } catch (e: any) {
+    aiSearchError.value = e?.response?.data?.detail || "Search failed"
+  } finally {
+    aiSearchLoading.value = false
+  }
+}
+
+function handleAiFileUpload(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    aiImportJson.value = reader.result as string
+    aiImportError.value = ""
+  }
+  reader.readAsText(file)
+}
+
+async function handleAiImport() {
+  let payload: any
+  try {
+    payload = JSON.parse(aiImportJson.value)
+  } catch {
+    aiImportError.value = "Invalid JSON"
+    return
+  }
+  aiImportLoading.value = true
+  aiImportError.value = ""
+  aiImportSuccess.value = ""
+  try {
+    const res = await api.post("/ai-context/import", { ...payload, project_id: projectId })
+    const notes = res.data.notes || 0
+    const tasks = res.data.tasks || 0
+    aiImportSuccess.value = `Imported ${notes} note${notes !== 1 ? "s" : ""} and ${tasks} task${tasks !== 1 ? "s" : ""}`
+    aiImportJson.value = ""
+  } catch (e: any) {
+    aiImportError.value = e?.response?.data?.detail || "Import failed"
+  } finally {
+    aiImportLoading.value = false
+  }
+}
+
+function statusBadge(status: string) {
+  const map: Record<string, string> = {
+    backlog: "bg-slate-400/10 text-slate-400",
+    todo: "bg-slate-400/10 text-slate-400",
+    "in-progress": "bg-brand-400/10 text-brand-400",
+    review: "bg-amber-400/10 text-amber-400",
+    blocked: "bg-red-400/10 text-red-400",
+    done: "bg-green-400/10 text-green-400",
+    cancelled: "bg-slate-400/10 text-slate-400",
+    deferred: "bg-slate-400/10 text-slate-400",
+  }
+  return map[status] || "bg-slate-400/10 text-slate-400"
+}
+
+function priorityBadge(priority: string) {
+  const map: Record<string, string> = {
+    low: "bg-slate-400/10 text-slate-400",
+    medium: "bg-amber-400/10 text-amber-400",
+    high: "bg-red-400/10 text-red-400",
+  }
+  return map[priority] || "bg-slate-400/10 text-slate-400"
 }
 
 function formatDate(d: string) {
