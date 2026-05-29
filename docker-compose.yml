@@ -55,9 +55,6 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
-    volumes:
-      - ./apps/frontend:/app
-      - /app/node_modules
     ports:
       - "3000:3000"
     environment:

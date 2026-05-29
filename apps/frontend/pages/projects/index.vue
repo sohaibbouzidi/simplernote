@@ -1,88 +1,106 @@
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-3xl font-semibold text-white">Projects</h1>
-        <p class="text-slate-400">Create and manage your AI memory workspaces.</p>
+        <h1 class="text-2xl font-semibold text-[#e6edf3]">Projects</h1>
+        <p class="text-sm text-[#8b949e]">AI agent memory workspaces.</p>
       </div>
-      <button @click="openCreate" class="rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:brightness-110">New project</button>
+      <button @click="openCreate" class="rounded-md border border-[#21262d] bg-[#2ea043] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2c974b]">New project</button>
     </div>
 
-    <div v-if="loading" class="flex items-center justify-center py-20 text-slate-500">
-      <svg class="h-6 w-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+    <div v-if="loading" class="flex items-center justify-center py-20 text-[#8b949e]">
+      <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
       <span class="ml-3">Loading projects...</span>
     </div>
 
-    <div v-else-if="error" class="rounded-2xl border border-red-800/50 bg-red-950/30 p-6 text-center text-red-400">
+    <div v-else-if="error" class="rounded-lg border border-[#f85149]/50 bg-[#f85149]/10 p-6 text-center text-[#f85149]">
       <p>{{ error }}</p>
-      <button @click="fetchProjects" class="mt-3 rounded-xl bg-red-800/30 px-4 py-2 text-sm hover:bg-red-800/50">Retry</button>
+      <button @click="fetchProjects" class="mt-3 rounded-md bg-[#21262d] px-4 py-2 text-sm hover:bg-[#30363d]">Retry</button>
     </div>
 
-    <div v-else-if="projects.length === 0" class="rounded-2xl border border-slate-800/50 bg-surface-50/50 p-12 text-center">
-      <p class="text-3xl mb-4">📁</p>
-      <h3 class="font-display text-xl font-semibold text-white">No projects yet</h3>
-      <p class="mt-2 text-sm text-slate-400">Create your first project to get started.</p>
-      <button @click="openCreate" class="mt-6 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:brightness-110">Create project</button>
+    <div v-else-if="filtered.length === 0" class="rounded-lg border border-[#21262d] p-12 text-center">
+      <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#21262d]">
+        <svg class="h-6 w-6 text-[#8b949e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+      </div>
+      <h3 class="font-semibold text-[#e6edf3]">{{ searchQuery ? 'No matching projects' : 'No projects yet' }}</h3>
+      <p class="mt-1 text-sm text-[#8b949e]">{{ searchQuery ? 'Try a different search term.' : 'Create your first project to get started.' }}</p>
+      <button v-if="!searchQuery" @click="openCreate" class="mt-4 rounded-md border border-[#21262d] bg-[#2ea043] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2c974b]">Create project</button>
     </div>
 
-    <div v-else class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-      <NuxtLink v-for="project in projects" :key="project.id" :to="`/projects/${project.id}`" class="group block rounded-2xl border border-slate-800/50 bg-surface-50/50 p-6 transition-all hover:border-violet-500/20 hover:shadow-xl hover:shadow-violet-500/5">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <h2 class="text-xl font-semibold text-white truncate">{{ project.name }}</h2>
-            <p class="mt-2 text-sm text-slate-400">{{ project.description || 'No description provided.' }}</p>
+    <template v-else>
+      <div class="flex items-center gap-3 rounded-lg border border-[#21262d] bg-[#161b22] px-4 py-2.5">
+        <svg class="h-4 w-4 text-[#8b949e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        <input v-model="searchQuery" placeholder="Find a project..." class="flex-1 bg-transparent text-sm text-[#e6edf3] placeholder-[#8b949e] focus:outline-none" />
+      </div>
+
+      <div class="rounded-lg border border-[#21262d] divide-y divide-[#21262d]">
+        <NuxtLink v-for="project in filtered" :key="project.id" :to="`/projects/${project.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-[#161b22]">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[#30363d] bg-[#21262d]">
+            <svg class="h-4 w-4 text-[#8b949e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
           </div>
-        </div>
-      </NuxtLink>
-    </div>
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-semibold text-[#58a6ff] hover:underline">{{ project.name }}</p>
+            <p v-if="project.description" class="mt-0.5 truncate text-sm text-[#8b949e]">{{ project.description }}</p>
+          </div>
+          <span class="shrink-0 text-xs text-[#8b949e]">Updated {{ formatDate(project.updated_at || project.created_at) }}</span>
+        </NuxtLink>
+      </div>
+    </template>
 
-    <Modal v-model="showModal" :title="editing ? 'Edit Project' : 'New Project'">
+    <Modal v-model="showModal" title="New project">
       <form @submit.prevent="saveProject" class="space-y-4">
         <div>
-          <label class="block text-sm text-slate-400 mb-1">Name</label>
-          <input v-model="form.name" required class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none" />
+          <label class="block text-sm font-medium text-[#e6edf3] mb-1">Project name</label>
+          <input v-model="form.name" required placeholder="e.g. my-ai-workspace" class="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#e6edf3] placeholder-[#8b949e] focus:border-[#2ea043] focus:outline-none" />
         </div>
         <div>
-          <label class="block text-sm text-slate-400 mb-1">Description</label>
-          <textarea v-model="form.description" rows="3" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none" />
+          <label class="block text-sm font-medium text-[#e6edf3] mb-1">Description</label>
+          <textarea v-model="form.description" rows="3" placeholder="Optional description" class="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#e6edf3] placeholder-[#8b949e] focus:border-[#2ea043] focus:outline-none" />
         </div>
         <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="showModal = false" class="rounded-xl bg-slate-800 px-5 py-2.5 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
-          <button type="submit" class="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:brightness-110">{{ editing ? 'Save' : 'Create' }}</button>
+          <button type="button" @click="showModal = false" class="rounded-md border border-[#21262d] bg-[#21262d] px-4 py-2 text-sm text-[#e6edf3] hover:bg-[#30363d]">Cancel</button>
+          <button type="submit" class="rounded-md border border-[#21262d] bg-[#2ea043] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2c974b]">Create</button>
         </div>
       </form>
-    </Modal>
-
-    <Modal v-model="showDelete" title="Delete Project?">
-      <p class="text-slate-400 mb-6">Delete <strong class="text-white">{{ deleting?.name }}</strong>? This will also delete all notes and tasks in this project.</p>
-      <div class="flex justify-end gap-3">
-        <button @click="showDelete = false" class="rounded-xl bg-slate-800 px-5 py-2.5 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
-        <button @click="deleteProject" class="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500">Delete</button>
-      </div>
     </Modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue"
+import { ref, computed, onMounted } from "vue"
+import { useRoute } from "#app"
 import { getApiInstance } from "@/services/api"
 
 const api = getApiInstance()
+const route = useRoute()
 const projects = ref<any[]>([])
 const loading = ref(true)
 const error = ref("")
 const showModal = ref(false)
-const showDelete = ref(false)
-const editing = ref<any | null>(null)
-const deleting = ref<any | null>(null)
-
+const searchQuery = ref((route.query.q as string) || "")
 const form = ref({ name: "", description: "" })
 
-watch(showModal, (v) => { if (!v) { editing.value = null; form.value = { name: "", description: "" } } })
+const filtered = computed(() => {
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return projects.value
+  return projects.value.filter(p => p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q))
+})
 
-function openCreate() { editing.value = null; form.value = { name: "", description: "" }; showModal.value = true }
-function openEdit(project: any) { editing.value = project; form.value = { name: project.name, description: project.description || "" }; showModal.value = true }
-function confirmDelete(project: any) { deleting.value = project; showDelete.value = true }
+function formatDate(d: string) {
+  if (!d) return ""
+  const date = new Date(d)
+  const now = new Date()
+  const diff = (now.getTime() - date.getTime()) / 1000
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+function openCreate() {
+  form.value = { name: "", description: "" }
+  showModal.value = true
+}
 
 async function fetchProjects() {
   loading.value = true; error.value = ""
@@ -92,18 +110,9 @@ async function fetchProjects() {
 
 async function saveProject() {
   try {
-    if (editing.value) await api.patch(`/projects/${editing.value.id}`, form.value)
-    else await api.post("/projects", form.value)
+    await api.post("/projects", form.value)
     showModal.value = false; await fetchProjects()
   } catch (e: any) { alert(e?.response?.data?.detail || "Error saving project") }
-}
-
-async function deleteProject() {
-  if (!deleting.value) return
-  try {
-    await api.delete(`/projects/${deleting.value.id}`)
-    showDelete.value = false; deleting.value = null; await fetchProjects()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error deleting project") }
 }
 
 onMounted(fetchProjects)

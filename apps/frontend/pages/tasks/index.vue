@@ -1,118 +1,99 @@
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-3xl font-semibold text-white">Tasks</h1>
-        <p class="text-slate-400">Organize work with status lanes and subtasks.</p>
+        <h1 class="text-2xl font-semibold text-[#e6edf3]">Tasks</h1>
+        <p class="text-sm text-[#8b949e]">Organize work with status lanes across all projects.</p>
       </div>
-      <button @click="openCreate" class="rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:brightness-110">Add task</button>
+      <button @click="openCreate" class="rounded-md border border-[#21262d] bg-[#238636] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2c974b]">Add task</button>
     </div>
 
-    <div v-if="loading" class="flex items-center justify-center py-20 text-slate-500">
-      <svg class="h-6 w-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+    <div v-if="loading" class="flex items-center justify-center py-20 text-[#8b949e]">
+      <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
       <span class="ml-3">Loading tasks...</span>
     </div>
 
-    <div v-else-if="error" class="rounded-2xl border border-red-800/50 bg-red-950/30 p-6 text-center text-red-400">
+    <div v-else-if="error" class="rounded-lg border border-[#f85149]/50 bg-[#f85149]/10 p-6 text-center text-[#f85149]">
       <p>{{ error }}</p>
-      <button @click="fetchTasks" class="mt-3 rounded-xl bg-red-800/30 px-4 py-2 text-sm hover:bg-red-800/50">Retry</button>
+      <button @click="fetchTasks" class="mt-3 rounded-md bg-[#21262d] px-4 py-2 text-sm hover:bg-[#30363d]">Retry</button>
     </div>
 
-    <div v-else-if="tasks.length === 0" class="rounded-2xl border border-slate-800/50 bg-surface-50/50 p-12 text-center">
-      <p class="text-3xl mb-4">📋</p>
-      <h3 class="font-display text-xl font-semibold text-white">No tasks yet</h3>
-      <p class="mt-2 text-sm text-slate-400">Create your first task to get started.</p>
-      <button @click="openCreate" class="mt-6 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:brightness-110">Create task</button>
+    <div v-else-if="tasks.length === 0" class="rounded-lg border border-dashed border-[#21262d] p-12 text-center">
+      <svg class="mx-auto h-8 w-8 text-[#8b949e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+      <h3 class="mt-3 font-semibold text-[#e6edf3]">No tasks yet</h3>
+      <p class="mt-1 text-sm text-[#8b949e]">Create your first task to get started.</p>
+      <button @click="openCreate" class="mt-4 rounded-md border border-[#21262d] bg-[#238636] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2c974b]">Create task</button>
     </div>
 
-    <div v-else class="grid gap-4 lg:grid-cols-4">
-      <div v-for="lane in lanes" :key="lane.name" class="rounded-3xl border border-slate-800 bg-slate-950 p-5">
-        <div class="mb-4 flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-white">{{ lane.label }}</h2>
-          <span class="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">{{ lane.tasks.length }}</span>
-        </div>
-        <div class="space-y-4 min-h-[120px]">
-          <div v-for="task in lane.tasks" :key="task.id" class="rounded-2xl border border-slate-800 bg-slate-900 p-4 text-slate-200">
-            <div class="flex items-start justify-between gap-2">
-              <p class="font-semibold">{{ task.title }}</p>
-              <span :class="priorityClass(task.priority)" class="shrink-0 rounded-full px-2 py-0.5 text-xs">{{ task.priority }}</span>
-            </div>
-            <p class="mt-2 text-sm text-slate-400 line-clamp-2">{{ task.description }}</p>
-            <div class="mt-3 flex items-center gap-2">
-              <button @click="openEdit(task)" class="rounded-lg bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700">Edit</button>
-              <button @click="quickMove(task)" class="rounded-lg bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700">Move</button>
-              <button @click="confirmDelete(task)" class="rounded-lg bg-red-900/50 px-2.5 py-1 text-xs text-red-300 hover:bg-red-800/50">Delete</button>
+    <div v-else class="overflow-x-auto pb-4">
+      <div class="flex gap-4 min-w-max">
+        <div v-for="lane in lanes" :key="lane.key" class="w-72 shrink-0">
+          <div class="mb-3 flex items-center gap-2 px-1">
+            <span :class="lane.dotClass" class="h-2.5 w-2.5 rounded-full inline-block" />
+            <span class="text-xs font-semibold text-[#8b949e] uppercase tracking-wider">{{ lane.label }}</span>
+            <span class="text-xs text-[#8b949e]">{{ lane.tasks.length }}</span>
+          </div>
+          <div class="space-y-2">
+            <div v-for="task in lane.tasks" :key="task.id" :class="['cursor-pointer rounded-lg border p-3 transition-colors', task.status === 'done' ? 'border-[#21262d] bg-[#161b22] opacity-60 hover:opacity-100' : task.status === 'in-progress' ? 'border-[#1f6feb]/40 bg-[#161b22] hover:bg-[#1c2333]' : task.status === 'blocked' ? 'border-[#f85149]/40 bg-[#161b22] hover:bg-[#2d1c1c]' : 'border-[#21262d] bg-[#161b22] hover:bg-[#1c2128]']" @click="openEdit(task)">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-[#e6edf3]">{{ task.title }}</p>
+                <span v-if="task.priority" :class="task.priority === 'high' ? 'text-[#f85149]' : task.priority === 'medium' ? 'text-[#d29922]' : 'text-[#8b949e]'" class="shrink-0 text-xs">{{ task.priority }}</span>
+              </div>
+              <p v-if="task.description" class="mt-1 text-xs text-[#8b949e] line-clamp-2">{{ task.description }}</p>
+              <div class="mt-2 flex items-center gap-2 text-xs text-[#8b949e]">
+                <span v-if="task.project_name" class="truncate text-[#58a6ff]">{{ task.project_name }}</span>
+                <span v-if="task.assigned_agent">@{{ task.assigned_agent }}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <Modal v-model="showModal" :title="editing ? 'Edit Task' : 'New Task'">
+    <Modal v-model="showModal" :title="editing ? 'Edit task' : 'New task'">
       <form @submit.prevent="saveTask" class="space-y-4">
         <div>
-          <label class="block text-sm text-slate-400 mb-1">Project</label>
-          <select v-model="form.project_id" required class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none">
-            <option value="" disabled>Select a project</option>
+          <label class="block text-sm font-medium text-[#e6edf3] mb-1">Title</label>
+          <input v-model="form.title" required class="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#e6edf3] focus:border-[#2ea043] focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-[#e6edf3] mb-1">Description</label>
+          <textarea v-model="form.description" rows="3" class="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#e6edf3] focus:border-[#2ea043] focus:outline-none" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-[#e6edf3] mb-1">Status</label>
+            <select v-model="form.status" class="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#e6edf3] focus:border-[#2ea043] focus:outline-none">
+              <option v-for="l in laneOptions" :key="l.key" :value="l.key">{{ l.label }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-[#e6edf3] mb-1">Priority</label>
+            <select v-model="form.priority" class="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#e6edf3] focus:border-[#2ea043] focus:outline-none">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+        </div>
+        <div v-if="!editing">
+          <label class="block text-sm font-medium text-[#e6edf3] mb-1">Project (optional)</label>
+          <select v-model="form.project_id" class="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#e6edf3] focus:border-[#2ea043] focus:outline-none">
+            <option value="">No project</option>
             <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
-        <div>
-          <label class="block text-sm text-slate-400 mb-1">Title</label>
-          <input v-model="form.title" required class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none" />
-        </div>
-        <div>
-          <label class="block text-sm text-slate-400 mb-1">Description</label>
-          <textarea v-model="form.description" rows="3" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none" />
-        </div>
-        <div class="flex gap-4">
-          <div class="flex-1">
-            <label class="block text-sm text-slate-400 mb-1">Status</label>
-            <select v-model="form.status" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none">
-              <option v-for="l in lanes" :key="l.name" :value="l.name">{{ l.label }}</option>
-            </select>
-          </div>
-          <div class="flex-1">
-            <label class="block text-sm text-slate-400 mb-1">Priority</label>
-            <select v-model="form.priority" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none">
-              <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm text-slate-400 mb-1">Assigned Agent</label>
-          <input v-model="form.assigned_agent" placeholder="agent-name (optional)" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none" />
-        </div>
         <div class="flex justify-end gap-3 pt-2">
-          <button type="button" @click="showModal = false" class="rounded-xl bg-slate-800 px-5 py-2.5 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
-          <button type="submit" class="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:brightness-110">{{ editing ? 'Save' : 'Create' }}</button>
+          <button type="button" @click="showModal = false" class="rounded-md border border-[#21262d] bg-[#21262d] px-4 py-2 text-sm text-[#e6edf3] hover:bg-[#30363d]">Cancel</button>
+          <button type="submit" class="rounded-md border border-[#21262d] bg-[#238636] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2c974b]">{{ editing ? 'Save' : 'Create' }}</button>
         </div>
       </form>
-    </Modal>
-
-    <Modal v-model="showMove" title="Move Task">
-      <div class="space-y-3">
-        <p class="text-slate-400">Move <strong class="text-white">{{ moving?.title }}</strong> to:</p>
-        <div class="flex flex-wrap gap-2">
-          <button v-for="l in lanes" :key="l.name" @click="moveTask(l.name)" :class="moving?.status === l.name ? 'border-brand-500 bg-brand-500/20' : 'border-slate-700 hover:border-slate-600'" class="rounded-xl border px-4 py-2 text-sm text-white">
-            {{ l.label }}
-          </button>
-        </div>
-      </div>
-    </Modal>
-
-    <Modal v-model="showDelete" title="Delete Task?">
-      <p class="text-slate-400 mb-6">Delete <strong class="text-white">{{ deleting?.title }}</strong>?</p>
-      <div class="flex justify-end gap-3">
-        <button @click="showDelete = false" class="rounded-xl bg-slate-800 px-5 py-2.5 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
-        <button @click="deleteTask" class="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500">Delete</button>
-      </div>
     </Modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { getApiInstance } from "@/services/api"
 
 const api = getApiInstance()
@@ -121,86 +102,61 @@ const projects = ref<any[]>([])
 const loading = ref(true)
 const error = ref("")
 const showModal = ref(false)
-const showMove = ref(false)
-const showDelete = ref(false)
 const editing = ref<any | null>(null)
-const moving = ref<any | null>(null)
-const deleting = ref<any | null>(null)
+const form = ref({ title: "", description: "", status: "todo", priority: "medium", project_id: "" })
 
-const laneDefs = [
-  { name: "todo", label: "Todo" },
-  { name: "planning", label: "Planning" },
-  { name: "research", label: "Research" },
-  { name: "coding", label: "Coding" },
-  { name: "review", label: "Review" },
-  { name: "testing", label: "Testing" },
-  { name: "done", label: "Done" },
-  { name: "blocked", label: "Blocked" },
+const laneOptions = [
+  { key: "backlog", label: "Backlog", dotClass: "bg-[#8b949e]" },
+  { key: "todo", label: "Todo", dotClass: "bg-[#8b949e]" },
+  { key: "in-progress", label: "In Progress", dotClass: "bg-[#58a6ff]" },
+  { key: "review", label: "Review", dotClass: "bg-[#d29922]" },
+  { key: "blocked", label: "Blocked", dotClass: "bg-[#f85149]" },
+  { key: "done", label: "Done", dotClass: "bg-[#56d364]" },
+  { key: "cancelled", label: "Cancelled", dotClass: "bg-[#8b949e]" },
+  { key: "deferred", label: "Deferred", dotClass: "bg-[#8b949e]" },
 ]
 
-const lanes = computed(() =>
-  laneDefs.map((l) => ({ ...l, tasks: tasks.value.filter((t: any) => t.status === l.name) }))
-)
-
-const form = ref({ project_id: "", title: "", description: "", status: "todo", priority: "medium", assigned_agent: "" })
-
-watch(showModal, (v) => { if (!v) { editing.value = null; resetForm() } })
-
-function resetForm() {
-  form.value = { project_id: "", title: "", description: "", status: "todo", priority: "medium", assigned_agent: "" }
-}
-
-function openCreate() { editing.value = null; resetForm(); showModal.value = true }
-
-function openEdit(task: any) {
-  editing.value = task
-  form.value = { project_id: task.project_id, title: task.title, description: task.description || "", status: task.status, priority: task.priority, assigned_agent: task.assigned_agent || "" }
-  showModal.value = true
-}
-
-function quickMove(task: any) { moving.value = task; showMove.value = true }
-
-async function moveTask(status: string) {
-  if (!moving.value) return
-  try {
-    await api.patch(`/tasks/${moving.value.id}`, { status })
-    showMove.value = false; await fetchTasks()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error moving task") }
-}
-
-function confirmDelete(task: any) { deleting.value = task; showDelete.value = true }
-
-function priorityClass(p: string) {
-  if (p === "critical") return "bg-red-900/50 text-red-300"
-  if (p === "high") return "bg-orange-900/50 text-orange-300"
-  if (p === "medium") return "bg-blue-900/50 text-blue-300"
-  return "bg-slate-800 text-slate-400"
-}
+const lanes = computed(() => {
+  const groups: Record<string, any[]> = {}
+  for (const l of laneOptions) groups[l.key] = []
+  for (const task of tasks.value) {
+    if (groups[task.status]) groups[task.status].push(task)
+    else groups["backlog"].push(task)
+  }
+  return laneOptions.map(l => ({ ...l, tasks: groups[l.key] || [] }))
+})
 
 async function fetchTasks() {
   loading.value = true; error.value = ""
   try { tasks.value = (await api.get("/tasks")).data } catch (e: any) { error.value = e?.response?.data?.detail || "Failed to load tasks"; tasks.value = [] }
   finally { loading.value = false }
 }
+
 async function fetchProjects() {
-  try { projects.value = (await api.get("/projects")).data } catch (e) { console.error(e) }
+  try { projects.value = (await api.get("/projects")).data } catch { projects.value = [] }
+}
+
+function openCreate() {
+  editing.value = null
+  form.value = { title: "", description: "", status: "todo", priority: "medium", project_id: "" }
+  showModal.value = true
+}
+
+function openEdit(task: any) {
+  editing.value = task
+  form.value = { title: task.title, description: task.description || "", status: task.status, priority: task.priority || "medium", project_id: task.project_id || "" }
+  showModal.value = true
 }
 
 async function saveTask() {
   try {
-    if (editing.value) await api.patch(`/tasks/${editing.value.id}`, form.value)
-    else await api.post("/tasks", form.value)
+    const payload: any = { title: form.value.title, description: form.value.description, status: form.value.status, priority: form.value.priority }
+    if (form.value.project_id) payload.project_id = form.value.project_id
+    if (editing.value) await api.patch(`/tasks/${editing.value.id}`, payload)
+    else await api.post("/tasks", payload)
     showModal.value = false; await fetchTasks()
   } catch (e: any) { alert(e?.response?.data?.detail || "Error saving task") }
 }
 
-async function deleteTask() {
-  if (!deleting.value) return
-  try {
-    await api.delete(`/tasks/${deleting.value.id}`)
-    showDelete.value = false; deleting.value = null; await fetchTasks()
-  } catch (e: any) { alert(e?.response?.data?.detail || "Error deleting task") }
-}
-
-onMounted(async () => { await Promise.all([fetchTasks(), fetchProjects()]) })
+onMounted(() => { fetchTasks(); fetchProjects() })
 </script>
