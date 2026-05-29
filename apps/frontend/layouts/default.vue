@@ -37,6 +37,10 @@ const navLinks = [
   { label: "Activity", to: "/activity-logs" },
 ]
 
+if (auth.isAdmin) {
+  navLinks.push({ label: "Admin", to: "/admin" })
+}
+
 function handleLogout() {
   auth.clear()
   router.push("/")

@@ -56,4 +56,6 @@ class AuthService:
         user = UserService.get_by_id(db, payload["sub"])
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        if not user.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
         return user

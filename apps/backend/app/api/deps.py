@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
+from app.models.user import User
 from app.services.auth import AuthService, oauth2_scheme
 from app.services.api_keys import APIKeyService
 from typing import List
@@ -26,6 +27,16 @@ class PermissionChecker:
                     )
             return key_data
         
-        # If it's a regular user, return user context
         user = AuthService.get_current_user(token=token, db=db)
         return {"user_id": user.id}
+
+
+def require_role(role: str):
+    def role_checker(current_user: User = Depends(AuthService.get_current_user)):
+        if current_user.role != role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. {role} role required.",
+            )
+        return current_user
+    return role_checker

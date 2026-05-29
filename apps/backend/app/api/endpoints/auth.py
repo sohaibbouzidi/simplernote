@@ -1,12 +1,13 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from app.models.user import User
 
 from app.core.config import settings
 from app.core.rate_limit import rate_limit
 from app.db.session import get_db
 from app.schemas.auth import TokenSchema, UserCreateSchema, UserSchema, TokenRefreshSchema
-from app.services.auth import AuthService
+from app.services.auth import AuthService, oauth2_scheme
 from app.services.users import UserService
 
 router = APIRouter()
@@ -45,3 +46,8 @@ def refresh_token(refresh: TokenRefreshSchema, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
     access_token = AuthService.create_access_token({"sub": token_data.sub}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "refresh_token": refresh.refresh_token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=UserSchema)
+def get_me(current_user: User = Depends(AuthService.get_current_user)):
+    return current_user

@@ -5,10 +5,11 @@ export const useAuthStore = defineStore("auth", {
   state: () => ({
     token: "",
     refreshToken: "",
-    user: null as null | { id: string; email: string },
+    user: null as null | { id: string; email: string; role: string },
   }),
   getters: {
     isAuthenticated: (state) => !!state.token,
+    isAdmin: (state) => state.user?.role === "admin",
   },
   actions: {
     init() {
@@ -37,12 +38,23 @@ export const useAuthStore = defineStore("auth", {
       setAuthToken("")
       localStorage.removeItem("simplernote_auth")
     },
+    async fetchUser() {
+      const api = getApiInstance()
+      try {
+        const res = await api.get("/auth/me")
+        this.user = res.data
+        this._persist()
+      } catch {
+        this.clear()
+      }
+    },
     async login(email: string, password: string) {
       const api = getApiInstance()
       const response = await api.post("/auth/login", { email, password })
       this.token = response.data.access_token
       this.refreshToken = response.data.refresh_token
       setAuthToken(this.token)
+      await this.fetchUser()
       this._persist()
     },
     async register(email: string, password: string) {
