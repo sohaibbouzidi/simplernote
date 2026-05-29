@@ -1,23 +1,23 @@
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-2xl font-semibold text-[#e6edf3]">Admin</h1>
-      <p class="text-sm text-[#8b949e]">Manage users and their roles.</p>
+      <h1 class="text-2xl font-semibold text-white">Admin</h1>
+      <p class="text-sm text-slate-400">Manage users and their roles.</p>
     </div>
 
-    <div v-if="loading" class="flex items-center justify-center py-20 text-[#8b949e]">
+    <div v-if="loading" class="flex items-center justify-center py-20 text-slate-400">
       <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
       <span class="ml-3">Loading users...</span>
     </div>
 
-    <div v-else-if="error" class="rounded-lg border border-[#f85149]/50 bg-[#f85149]/10 p-6 text-center text-[#f85149]">
+    <div v-else-if="error" class="rounded-lg border border-red-500/50 bg-red-500/10 p-6 text-center text-red-400">
       <p>{{ error }}</p>
-      <button @click="fetchUsers" class="mt-3 rounded-md bg-[#21262d] px-4 py-2 text-sm hover:bg-[#30363d]">Retry</button>
+      <button @click="fetchUsers" class="mt-3 rounded-md bg-slate-800 px-4 py-2 text-sm hover:bg-slate-700">Retry</button>
     </div>
 
-    <div v-else class="rounded-lg border border-[#21262d] overflow-hidden">
+    <div v-else class="rounded-lg border border-slate-800 overflow-hidden">
       <table class="w-full text-left text-sm">
-        <thead class="bg-[#161b22] text-[#8b949e]">
+        <thead class="bg-surface-50 text-slate-400">
           <tr>
             <th class="px-5 py-3 font-medium">Email</th>
             <th class="px-5 py-3 font-medium">Role</th>
@@ -26,21 +26,21 @@
             <th class="px-5 py-3 font-medium">Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[#21262d]">
-          <tr v-for="user in users" :key="user.id" class="hover:bg-[#161b22] transition-colors">
-            <td class="px-5 py-3 text-[#e6edf3]">{{ user.email }}</td>
+        <tbody class="divide-y divide-slate-800">
+          <tr v-for="user in users" :key="user.id" class="hover:bg-surface-50 transition-colors">
+            <td class="px-5 py-3 text-white">{{ user.email }}</td>
             <td class="px-5 py-3">
-              <span :class="user.role === 'admin' ? 'bg-[#d29922]/20 text-[#d29922] border border-[#d29922]/30' : 'bg-[#21262d] text-[#8b949e] border border-[#30363d]'" class="rounded-full px-2.5 py-0.5 text-xs font-medium">{{ user.role }}</span>
+              <span :class="user.role === 'admin' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'" class="rounded-full px-2.5 py-0.5 text-xs font-medium">{{ user.role }}</span>
             </td>
             <td class="px-5 py-3">
-              <span :class="user.is_active ? 'text-[#56d364]' : 'text-[#f85149]'" class="text-xs font-medium">{{ user.is_active ? "Active" : "Inactive" }}</span>
+              <span :class="user.is_active ? 'text-green-400' : 'text-red-400'" class="text-xs font-medium">{{ user.is_active ? "Active" : "Inactive" }}</span>
             </td>
-            <td class="px-5 py-3 text-xs text-[#8b949e]">{{ formatDate(user.created_at) }}</td>
+            <td class="px-5 py-3 text-xs text-slate-400">{{ formatDate(user.created_at) }}</td>
             <td class="px-5 py-3">
               <div class="flex items-center gap-2">
-                <button v-if="user.role !== 'admin'" @click="promote(user.id)" class="rounded-md border border-[#21262d] px-2.5 py-1 text-xs text-[#e6edf3] hover:bg-[#21262d]">Promote</button>
-                <button v-else @click="demote(user.id)" class="rounded-md border border-[#21262d] px-2.5 py-1 text-xs text-[#d29922] hover:bg-[#21262d]">Demote</button>
-                <button @click="confirmDelete(user)" class="rounded-md border border-[#21262d] px-2.5 py-1 text-xs text-[#f85149] hover:bg-[#f85149]/10">Delete</button>
+                <button v-if="user.role !== 'admin'" @click="promote(user.id)" class="rounded-md border border-slate-800 px-2.5 py-1 text-xs text-white hover:bg-slate-800">Promote</button>
+                <button v-else @click="demote(user.id)" class="rounded-md border border-slate-800 px-2.5 py-1 text-xs text-amber-400 hover:bg-slate-800">Demote</button>
+                <button @click="confirmDelete(user)" class="rounded-md border border-slate-800 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/10">Delete</button>
               </div>
             </td>
           </tr>
@@ -49,10 +49,10 @@
     </div>
 
     <Modal v-model="showDelete" title="Delete user?">
-      <p class="text-sm text-[#8b949e] mb-6">Delete user <strong class="text-[#e6edf3]">{{ deleting?.email }}</strong>? This cannot be undone.</p>
+      <p class="text-sm text-slate-400 mb-6">Delete user <strong class="text-white">{{ deleting?.email }}</strong>? This cannot be undone.</p>
       <div class="flex justify-end gap-3">
-        <button @click="showDelete = false" class="rounded-md border border-[#21262d] bg-[#21262d] px-4 py-2 text-sm text-[#e6edf3] hover:bg-[#30363d]">Cancel</button>
-        <button @click="deleteUser" class="rounded-md border border-[#21262d] bg-[#f85149] px-4 py-2 text-sm font-semibold text-white hover:bg-[#da3633]">Delete</button>
+        <button @click="showDelete = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
+        <button @click="deleteUser" class="rounded-md border border-slate-800 bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Delete</button>
       </div>
     </Modal>
   </div>
