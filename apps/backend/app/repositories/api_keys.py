@@ -9,13 +9,11 @@ from app.models.project import Project
 
 class APIKeyRepository:
     @staticmethod
-    def list_by_user(db: Session, user_id: str):
-        return (
-            db.query(APIKey)
-            .options(joinedload(APIKey.project))
-            .filter(APIKey.user_id == user_id)
-            .all()
-        )
+    def list_by_user(db: Session, user_id: str, project_id: str | None = None):
+        q = db.query(APIKey).options(joinedload(APIKey.project)).filter(APIKey.user_id == user_id)
+        if project_id:
+            q = q.filter(APIKey.project_id == project_id)
+        return q.all()
 
     @staticmethod
     def get(db: Session, key_id: str, user_id: str):
@@ -36,7 +34,7 @@ class APIKeyRepository:
         )
 
     @staticmethod
-    def create(db: Session, user_id: str, name: str, key_hash: str, permissions: dict, expires_at=None, project_id: UUID | None = None):
+    def create(db: Session, user_id: str, name: str, key_hash: str, permissions: dict, expires_at=None, project_id: UUID = None):
         api_key = APIKey(
             user_id=user_id,
             name=name,

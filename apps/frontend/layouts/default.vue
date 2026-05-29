@@ -33,7 +33,6 @@ const navLinks = [
   { label: "Notes", to: "/notes" },
   { label: "Tasks", to: "/tasks" },
   { label: "Projects", to: "/projects" },
-  { label: "API Keys", to: "/api-keys" },
   { label: "Activity", to: "/activity-logs" },
 ]
 

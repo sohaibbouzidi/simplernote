@@ -14,8 +14,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class APIKeyService:
     @staticmethod
-    def list_api_keys(db: Session, user_id: str):
-        return APIKeyRepository.list_by_user(db, user_id)
+    def list_api_keys(db: Session, user_id: str, project_id: Optional[str] = None):
+        return APIKeyRepository.list_by_user(db, user_id, project_id=project_id)
 
     @staticmethod
     def create_api_key(db: Session, user_id: str, key_in: APIKeyCreateSchema) -> Tuple[dict, str]:
@@ -31,8 +31,8 @@ class APIKeyService:
             "id": api_key.id,
             "name": api_key.name,
             "permissions": api_key.permissions,
-            "project_id": str(api_key.project_id) if api_key.project_id else None,
-            "project_name": api_key.project.name if api_key.project else None,
+            "project_id": str(api_key.project_id),
+            "project_name": api_key.project.name,
             "last_used_at": api_key.last_used_at,
             "expires_at": api_key.expires_at,
             "created_at": api_key.created_at,
@@ -64,4 +64,4 @@ class APIKeyService:
         if not pwd_context.verify(secret, api_key.key_hash):
             return None
         APIKeyRepository.update_last_used(db, api_key)
-        return {"user_id": str(api_key.user_id), "permissions": api_key.permissions, "api_key_id": str(api_key.id)}
+        return {"user_id": str(api_key.user_id), "permissions": api_key.permissions, "api_key_id": str(api_key.id), "project_id": str(api_key.project_id)}

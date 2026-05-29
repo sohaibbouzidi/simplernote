@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.schemas.api_keys import APIKeyCreateSchema, APIKeySchema
 from app.services.api_keys import APIKeyService
 from app.services.auth import AuthService
+import uuid
 
 router = APIRouter()
 
@@ -14,6 +15,11 @@ router = APIRouter()
 @router.get("/", response_model=List[APIKeySchema])
 def list_api_keys(db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
     return APIKeyService.list_api_keys(db, current_user.id)
+
+
+@router.get("/project/{project_id}", response_model=List[APIKeySchema])
+def list_project_api_keys(project_id: uuid.UUID, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
+    return APIKeyService.list_api_keys(db, current_user.id, project_id=str(project_id))
 
 
 @router.post("/", response_model=APIKeySchema, status_code=status.HTTP_201_CREATED)

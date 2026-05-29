@@ -8,14 +8,14 @@ class APIKeyCreateSchema(BaseModel):
     name: str
     permissions: Dict[str, bool] = Field(default_factory=dict)
     expires_at: Optional[datetime] = None
-    project_id: Optional[UUID] = None
+    project_id: UUID
 
 
 class APIKeySchema(BaseModel):
     id: UUID
     name: str
     permissions: Dict[str, bool]
-    project_id: Optional[UUID] = None
+    project_id: UUID
     project_name: Optional[str] = None
     last_used_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None

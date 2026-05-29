@@ -26,18 +26,14 @@
     </div>
 
     <div v-else class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-      <div v-for="project in projects" :key="project.id" class="group rounded-2xl border border-slate-800/50 bg-surface-50/50 p-6 transition-all hover:border-violet-500/20 hover:shadow-xl hover:shadow-violet-500/5">
+      <NuxtLink v-for="project in projects" :key="project.id" :to="`/projects/${project.id}`" class="group block rounded-2xl border border-slate-800/50 bg-surface-50/50 p-6 transition-all hover:border-violet-500/20 hover:shadow-xl hover:shadow-violet-500/5">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <h2 class="text-xl font-semibold text-white truncate">{{ project.name }}</h2>
             <p class="mt-2 text-sm text-slate-400">{{ project.description || 'No description provided.' }}</p>
           </div>
         </div>
-        <div class="mt-4 flex items-center gap-3">
-          <button @click="openEdit(project)" class="rounded-lg bg-slate-800/60 px-3 py-1.5 text-xs text-slate-300 transition-all hover:bg-slate-700/80">Edit</button>
-          <button @click="confirmDelete(project)" class="rounded-lg bg-red-900/30 px-3 py-1.5 text-xs text-red-300 transition-all hover:bg-red-800/50">Delete</button>
-        </div>
-      </div>
+      </NuxtLink>
     </div>
 
     <Modal v-model="showModal" :title="editing ? 'Edit Project' : 'New Project'">
