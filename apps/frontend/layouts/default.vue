@@ -14,13 +14,23 @@
         </div>
 
         <nav class="flex items-center gap-1 text-sm">
-          <NuxtLink v-for="link in navLinks" :key="link.to" :to="link.to" class="rounded-md px-3 py-2 text-slate-400 transition-all hover:bg-slate-800 hover:text-white" active-class="!text-white !bg-slate-800">{{ link.label }}</NuxtLink>
-          <div class="mx-2 h-5 w-px bg-slate-800" />
-          <button @click="handleLogout" class="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-red-400 transition-all hover:bg-slate-800">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-            Sign out
-          </button>
-        </nav>
+              <NuxtLink v-for="link in navLinks" :key="link.to" :to="link.to" class="rounded-md px-3 py-2 text-slate-400 transition-all hover:bg-slate-800 hover:text-white" active-class="!text-white !bg-slate-800">{{ link.label }}</NuxtLink>
+              <div class="mx-2 h-5 w-px bg-slate-800" />
+              <div ref="menuRef" class="relative">
+                <button @click.stop="toggleMenu" :aria-expanded="menuOpen" class="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm">
+                  <div v-if="auth.user?.picture_url" class="h-8 w-8 rounded-full overflow-hidden">
+                    <img :src="auth.user.picture_url" alt="avatar" class="h-full w-full object-cover" />
+                  </div>
+                  <div v-else class="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold text-white">{{ initials }}</div>
+                </button>
+                <transition name="fade">
+                  <div v-if="menuOpen" class="absolute right-0 mt-2 w-40 rounded-md bg-surface-50 border border-slate-800 shadow-lg z-50">
+                    <NuxtLink to="/profile" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">Profile</NuxtLink>
+                    <button @click="handleLogout" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800">Sign out</button>
+                  </div>
+                </transition>
+              </div>
+            </nav>
       </div>
     </header>
 
@@ -32,13 +42,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { ref, onMounted, onBeforeUnmount, computed } from "vue"
 import { useRouter } from "#app"
 import { useAuthStore } from "@/stores/auth"
 
 const auth = useAuthStore()
 const router = useRouter()
 const searchQuery = ref("")
+
+const menuOpen = ref(false)
+const menuRef = ref<HTMLElement | null>(null)
+
+const handleClickOutside = (e: MouseEvent) => {
+  if (!menuRef.value) return
+  if (!(menuRef.value as HTMLElement).contains(e.target as Node)) {
+    menuOpen.value = false
+  }
+}
+
+onMounted(() => document.addEventListener("click", handleClickOutside))
+onBeforeUnmount(() => document.removeEventListener("click", handleClickOutside))
 
 const navLinks = [
   { label: "Dashboard", to: "/dashboard" },
@@ -58,7 +81,23 @@ function handleSearch() {
 }
 
 function handleLogout() {
+  menuOpen.value = false
   auth.clear()
   router.push("/")
 }
+
+function toggleMenu() {
+  menuOpen.value = !menuOpen.value
+}
+
+const initials = computed(() => {
+  const user = auth.user
+  if (!user) return ""
+  if (user.first_name || user.last_name) {
+    const f = user.first_name ? user.first_name.charAt(0) : ""
+    const l = user.last_name ? user.last_name.charAt(0) : ""
+    return (f + l).toUpperCase().slice(0, 2)
+  }
+  return user.email ? user.email.charAt(0).toUpperCase() : ""
+})
 </script>

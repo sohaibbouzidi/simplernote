@@ -25,6 +25,18 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000"]
     SENTRY_DSN: Optional[str] = None
+    S3_ENDPOINT_URL: Optional[str] = None
+    S3_PUBLIC_ENDPOINT: Optional[str] = None
+    S3_ACCESS_KEY_ID: Optional[str] = None
+    S3_SECRET_ACCESS_KEY: Optional[str] = None
+    S3_BUCKET_NAME: Optional[str] = None
+    S3_REGION: Optional[str] = None
+    S3_USE_SSL: Optional[bool] = False
+    # Profile picture validation
+    # Max size in bytes (default 5 MB)
+    MAX_PROFILE_PIC_SIZE_BYTES: int = 5 * 1024 * 1024
+    # Allowed content types for profile images
+    ALLOWED_IMAGE_CONTENT_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
 
 
 @lru_cache()

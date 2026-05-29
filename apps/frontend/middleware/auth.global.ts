@@ -8,6 +8,9 @@ export default defineNuxtRouteMiddleware((to) => {
   if (!auth.isAuthenticated) {
     return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`)
   }
+  if (!auth.isProfileComplete && to.path !== "/complete-profile") {
+    return navigateTo("/complete-profile")
+  }
 
   if (to.path.startsWith("/admin") && !auth.isAdmin) {
     return navigateTo("/dashboard")

@@ -13,7 +13,7 @@
     <template v-else>
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-semibold text-white">Welcome{{ auth.user?.email ? ', ' + auth.user.email.split('@')[0] : '' }}</h1>
+          <h1 class="text-2xl font-semibold text-white">Welcome{{ auth.user?.last_name ? ', ' + auth.user.last_name : '' }}</h1>
           <p class="mt-1 text-sm text-slate-400">Manage your AI agent workspaces.</p>
         </div>
         <NuxtLink to="/projects" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400">New project</NuxtLink>

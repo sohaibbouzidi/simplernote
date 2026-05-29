@@ -5,11 +5,31 @@ export const useAuthStore = defineStore("auth", {
   state: () => ({
     token: "",
     refreshToken: "",
-    user: null as null | { id: string; email: string; role: string },
+    user: null as
+      | null
+      | {
+          id: string
+          email: string
+          role: string
+          first_name?: string | null
+          last_name?: string | null
+          country?: string | null
+          city?: string | null
+          picture?: string | null
+          picture_url?: string | null
+        },
   }),
   getters: {
     isAuthenticated: (state) => !!state.token,
     isAdmin: (state) => state.user?.role === "admin",
+    isProfileComplete: (state) =>
+      !!(
+        state.user &&
+        state.user.first_name &&
+        state.user.last_name &&
+        state.user.country &&
+        state.user.city
+      ),
   },
   actions: {
     init() {
@@ -43,10 +63,41 @@ export const useAuthStore = defineStore("auth", {
       try {
         const res = await api.get("/auth/me")
         this.user = res.data
+        // if user has a picture (S3 key), request a presigned URL
+        try {
+          if (this.user?.picture) {
+            const r2 = await api.get("/users/me/picture-url")
+            this.user.picture_url = r2.data.url
+          }
+        } catch {}
         this._persist()
       } catch {
         this.clear()
       }
+    },
+    async updateProfile(payload: {
+      first_name?: string | null
+      last_name?: string | null
+      country?: string | null
+      city?: string | null
+      picture?: string | null
+    }) {
+      const api = getApiInstance()
+      const res = await api.patch("/users/me", payload)
+      // this.token = res.data.access_token
+      // this.refreshToken = res.data.refresh_token
+      this.user = res.data
+      // refresh presigned URL if picture key changed
+      try {
+        if (this.user?.picture) {
+          const r2 = await api.get("/users/me/picture-url")
+          this.user.picture_url = r2.data.url
+        } else {
+          this.user.picture_url = null
+        }
+      } catch {}
+      this._persist()
+      return res.data
     },
     async login(email: string, password: string) {
       const api = getApiInstance()

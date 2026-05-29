@@ -9,7 +9,6 @@ export function getApiInstance() {
     const config = useRuntimeConfig()
     apiInstance = axios.create({
       baseURL: config.public.apiBase,
-      headers: { "Content-Type": "application/json" },
       maxRedirects: 5,
     })
     apiInstance.interceptors.request.use((config) => {
