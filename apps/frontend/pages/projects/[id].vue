@@ -197,14 +197,15 @@
       <section class="rounded-lg border border-slate-800">
         <div class="border-b border-slate-800 px-5 py-3 flex items-center justify-between">
           <h2 class="text-base font-semibold text-white">API Keys</h2>
-          <button @click="openCreateKey" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-400">Create key</button>
+          <button v-if="keys.length === 0" @click="openCreateKey" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-400">Create key</button>
+          <span v-else class="text-xs text-slate-500">Max 1 key per project</span>
         </div>
         <div v-if="keysLoading" class="px-5 py-8 text-center text-sm text-slate-400">
           <svg class="mx-auto h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
           <span class="ml-2">Loading keys...</span>
         </div>
         <div v-else-if="keys.length === 0" class="px-5 py-8 text-center text-sm text-slate-400">
-          No API keys for this project.
+          No API keys for this project. Create one to enable AI agent access.
         </div>
         <div v-else class="divide-y divide-slate-800">
           <div v-for="key in keys" :key="key.id" class="flex items-center justify-between px-5 py-3">

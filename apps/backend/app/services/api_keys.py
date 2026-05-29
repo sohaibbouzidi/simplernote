@@ -19,6 +19,11 @@ class APIKeyService:
 
     @staticmethod
     def create_api_key(db: Session, user_id: str, key_in: APIKeyCreateSchema) -> Tuple[dict, str]:
+        if key_in.project_id:
+            existing = APIKeyRepository.list_by_user(db, user_id, project_id=str(key_in.project_id))
+            if existing:
+                from fastapi import HTTPException
+                raise HTTPException(status_code=409, detail="An API key already exists for this project. Only one key per project is allowed.")
         secret = secrets.token_urlsafe(32)
         hashed = get_password_hash(secret)
         expires_at = key_in.expires_at
