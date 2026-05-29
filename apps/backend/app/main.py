@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.core.redis_client import init_redis, close_redis, get_redis
 from app.core.logging import setup_logging, RequestLoggingMiddleware
 from app.core.exceptions import AppException
+from app.core.metrics import PrometheusMiddleware, metrics_response
 from app.db.session import engine, SessionLocal
 from app.models import base
 
@@ -22,6 +23,16 @@ app = FastAPI(
     description="AI Memory & Task Management API",
 )
 
+if settings.SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=settings.ENVIRONMENT,
+        enable_tracing=True,
+        traces_sample_rate=0.1,
+    )
+    logger.info("Sentry initialized")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -31,6 +42,7 @@ app.add_middleware(
 )
 
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(PrometheusMiddleware)
 
 app.include_router(api_router, prefix="/api")
 
@@ -58,6 +70,11 @@ async def startup_event():
 async def shutdown_event():
     close_redis()
     logger.info("Application shutting down")
+
+
+@app.get("/metrics")
+def metrics():
+    return metrics_response()
 
 
 @app.get("/health")
