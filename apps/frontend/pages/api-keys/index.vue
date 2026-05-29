@@ -35,6 +35,93 @@
       </div>
     </div>
 
+    <div v-if="keys.length > 0" class="rounded-3xl border border-slate-800/50 bg-surface-50/50 overflow-hidden">
+      <button @click="showGuide = !showGuide" class="flex w-full items-center justify-between px-6 py-4 text-left transition hover:bg-slate-800/20">
+        <div>
+          <h3 class="font-display text-lg font-semibold text-white">AI Agent Setup Guide</h3>
+          <p class="text-sm text-slate-400">How to connect AI agents to the Simplernote API using your API key.</p>
+        </div>
+        <svg :class="showGuide ? 'rotate-180' : ''" class="h-5 w-5 text-slate-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+      </button>
+
+      <div v-if="showGuide" class="border-t border-slate-800/50 px-6 py-6 space-y-8">
+
+        <div>
+          <h4 class="font-semibold text-white mb-2">1. Authentication</h4>
+          <p class="text-sm text-slate-400 mb-3">Include your API key in the <code class="text-brand-300">Authorization</code> header of every request.</p>
+          <CodeBlock :code="snippets.auth" lang="http" />
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-white mb-2">2. AI Context (Search &amp; Import)</h4>
+          <p class="text-sm text-slate-400 mb-3">Search across notes and tasks, or batch-import data for your AI agent.</p>
+          <div class="space-y-3">
+            <div>
+              <p class="text-xs text-slate-500 mb-1.5">Search knowledge base</p>
+              <CodeBlock :code="snippets.aiSearch" lang="bash" />
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 mb-1.5">Import notes &amp; tasks</p>
+              <CodeBlock :code="snippets.aiImport" lang="bash" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-white mb-2">3. Notes</h4>
+          <div class="space-y-3">
+            <div>
+              <p class="text-xs text-slate-500 mb-1.5">List all notes</p>
+              <CodeBlock :code="snippets.notesList" lang="bash" />
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 mb-1.5">Create a note</p>
+              <CodeBlock :code="snippets.notesCreate" lang="bash" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-white mb-2">4. Tasks</h4>
+          <div class="space-y-3">
+            <div>
+              <p class="text-xs text-slate-500 mb-1.5">List all tasks</p>
+              <CodeBlock :code="snippets.tasksList" lang="bash" />
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 mb-1.5">Create a task</p>
+              <CodeBlock :code="snippets.tasksCreate" lang="bash" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-white mb-2">5. Projects</h4>
+          <div class="space-y-3">
+            <div>
+              <p class="text-xs text-slate-500 mb-1.5">List all projects</p>
+              <CodeBlock :code="snippets.projectsList" lang="bash" />
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 mb-1.5">Create a project</p>
+              <CodeBlock :code="snippets.projectsCreate" lang="bash" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-white mb-2">6. Python (requests)</h4>
+          <CodeBlock :code="snippets.python" lang="python" />
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-white mb-2">7. JavaScript (fetch)</h4>
+          <CodeBlock :code="snippets.javascript" lang="javascript" />
+        </div>
+
+      </div>
+    </div>
+
     <Modal v-model="showModal" title="Create API Key">
       <form @submit.prevent="createKey" class="space-y-4">
         <div>
@@ -52,7 +139,9 @@
         </div>
         <div v-if="newKey" class="rounded-xl border border-brand-500/30 bg-brand-500/10 p-4">
           <p class="text-sm font-semibold text-brand-300">Key created! Copy it now — it won't be shown again.</p>
-          <code class="mt-2 block break-all rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-200">{{ newKey }}</code>
+          <div class="mt-2">
+            <CodeBlock :code="newKey" lang="plain" />
+          </div>
         </div>
         <div v-if="!newKey" class="flex justify-end gap-3 pt-2">
           <button type="button" @click="showModal = false" class="rounded-xl bg-slate-800 px-5 py-2.5 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
@@ -82,6 +171,7 @@ const api = getApiInstance()
 const keys = ref<any[]>([])
 const loading = ref(true)
 const error = ref("")
+const showGuide = ref(false)
 const showModal = ref(false)
 const showDelete = ref(false)
 const deleting = ref<any | null>(null)
@@ -93,6 +183,106 @@ const permissionOptions = [
 ]
 
 const form = ref({ name: "", permissions: { read_notes: false, write_notes: false } })
+
+const snippets = {
+  auth: "Authorization: Bearer YOUR_API_KEY",
+  aiSearch: `curl -H "Authorization: Bearer YOUR_API_KEY" "http://localhost:8000/api/ai-context/search?query=your+search+term"`,
+  aiImport: `curl -X POST "http://localhost:8000/api/ai-context/import" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+  "notes": [
+    {"project_id": "...", "title": "Note title", "content": "Note content", "note_type": "memory"}
+  ],
+  "tasks": [
+    {"project_id": "...", "title": "Task title", "description": "Task description", "status": "todo"}
+  ]
+}'`,
+  notesList: `curl -H "Authorization: Bearer YOUR_API_KEY" "http://localhost:8000/api/notes"`,
+  notesCreate: `curl -X POST "http://localhost:8000/api/notes" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+  "project_id": "...",
+  "title": "My Note",
+  "content": "Note content here",
+  "summary": "Brief summary",
+  "note_type": "documentation",
+  "tags": ["ai", "notes"]
+}'`,
+  tasksList: `curl -H "Authorization: Bearer YOUR_API_KEY" "http://localhost:8000/api/tasks"`,
+  tasksCreate: `curl -X POST "http://localhost:8000/api/tasks" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+  "project_id": "...",
+  "title": "My Task",
+  "description": "Task description",
+  "status": "todo",
+  "priority": "medium",
+  "assigned_agent": "my-agent"
+}'`,
+  projectsList: `curl -H "Authorization: Bearer YOUR_API_KEY" "http://localhost:8000/api/projects"`,
+  projectsCreate: `curl -X POST "http://localhost:8000/api/projects" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name": "My Project", "description": "Project description"}'`,
+  python: `import requests
+
+API_KEY = "YOUR_API_KEY"
+BASE_URL = "http://localhost:8000/api"
+HEADERS = {"Authorization": f"Bearer {API_KEY}"}
+
+# List projects
+projects = requests.get(f"{BASE_URL}/projects", headers=HEADERS).json()
+print(f"Projects: {len(projects)}")
+
+# Create a note
+note = requests.post(f"{BASE_URL}/notes", headers=HEADERS, json={
+    "project_id": projects[0]["id"],
+    "title": "AI Context Note",
+    "content": "This was created by an AI agent",
+    "note_type": "memory",
+    "tags": ["ai"]
+}).json()
+print(f"Created note: {note['id']}")
+
+# Search knowledge base
+results = requests.get(
+    f"{BASE_URL}/ai-context/search",
+    params={"query": "AI context"},
+    headers=HEADERS
+).json()
+print(f"Found {len(results['notes'])} notes, {len(results['tasks'])} tasks")`,
+  javascript: `const API_KEY = "YOUR_API_KEY";
+const BASE_URL = "http://localhost:8000/api";
+const HEADERS = { Authorization: \`Bearer \${API_KEY}\` };
+
+// List projects
+const projects = await fetch(\`\${BASE_URL}/projects\`, { headers: HEADERS }).then(r => r.json());
+console.log(\`Projects: \${projects.length}\`);
+
+// Create a note
+const note = await fetch(\`\${BASE_URL}/notes\`, {
+  method: "POST",
+  headers: { ...HEADERS, "Content-Type": "application/json" },
+  body: JSON.stringify({
+    project_id: projects[0].id,
+    title: "AI Context Note",
+    content: "Created by an AI agent",
+    note_type: "memory",
+    tags: ["ai"]
+  })
+}).then(r => r.json());
+console.log(\`Created note: \${note.id}\`);
+
+// Search knowledge base
+const results = await fetch(
+  \`\${BASE_URL}/ai-context/search?query=AI+context\`,
+  { headers: HEADERS }
+).then(r => r.json());
+console.log(\`Found \${results.notes.length} notes, \${results.tasks.length} tasks\`);`,
+}
 
 function openCreate() {
   form.value = { name: "", permissions: { read_notes: false, write_notes: false } }
