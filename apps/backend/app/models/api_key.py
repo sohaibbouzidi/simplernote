@@ -12,6 +12,7 @@ class APIKey(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True, index=True)
     name = Column(String(256), nullable=False)
     key_hash = Column(String(512), nullable=False)
     permissions = Column(JSONB, nullable=False, default=dict)
@@ -20,3 +21,8 @@ class APIKey(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
     user = relationship("User")
+    project = relationship("Project")
+
+    @property
+    def project_name(self) -> str | None:
+        return self.project.name if self.project else None

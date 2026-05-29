@@ -22,12 +22,17 @@ class APIKeyService:
         secret = secrets.token_urlsafe(32)
         hashed = get_password_hash(secret)
         expires_at = key_in.expires_at
-        api_key = APIKeyRepository.create(db, user_id, key_in.name, hashed, key_in.permissions, expires_at)
+        api_key = APIKeyRepository.create(
+            db, user_id, key_in.name, hashed, key_in.permissions,
+            expires_at=expires_at, project_id=key_in.project_id,
+        )
         token = f"sk_{api_key.id}.{secret}"
         serialized = {
             "id": api_key.id,
             "name": api_key.name,
             "permissions": api_key.permissions,
+            "project_id": str(api_key.project_id) if api_key.project_id else None,
+            "project_name": api_key.project.name if api_key.project else None,
             "last_used_at": api_key.last_used_at,
             "expires_at": api_key.expires_at,
             "created_at": api_key.created_at,

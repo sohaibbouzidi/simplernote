@@ -28,7 +28,7 @@
           <div class="min-w-0">
             <h2 class="text-lg font-semibold text-white">{{ key.name }}</h2>
             <p class="text-slate-400 text-sm mt-1">Permissions: {{ Object.keys(key.permissions).join(", ") || "none" }}</p>
-            <p class="text-slate-500 text-xs mt-1">Created: {{ formatDate(key.created_at) }}</p>
+            <p class="text-slate-500 text-xs mt-1">Project: {{ key.project_name || "All projects" }} &middot; Created: {{ formatDate(key.created_at) }}</p>
           </div>
           <button @click="confirmDelete(key)" class="shrink-0 rounded-xl bg-red-900/50 px-3 py-1.5 text-xs text-red-300 hover:bg-red-800/50">Revoke</button>
         </div>
@@ -136,6 +136,13 @@
               <span class="text-sm text-slate-300">{{ perm.label }}</span>
             </label>
           </div>
+          <div>
+            <label class="block text-sm text-slate-400 mb-2">Project (optional)</label>
+            <select v-model="form.project_id" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-white focus:border-brand-500 focus:outline-none">
+              <option :value="null">All projects</option>
+              <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
         </div>
         <div v-if="newKey" class="rounded-xl border border-brand-500/30 bg-brand-500/10 p-4">
           <p class="text-sm font-semibold text-brand-300">Key created! Copy it now — it won't be shown again.</p>
@@ -169,6 +176,7 @@ import { getApiInstance } from "@/services/api"
 
 const api = getApiInstance()
 const keys = ref<any[]>([])
+const projects = ref<any[]>([])
 const loading = ref(true)
 const error = ref("")
 const showGuide = ref(false)
@@ -182,7 +190,7 @@ const permissionOptions = [
   { key: "write_notes", label: "Create & edit notes & tasks" },
 ]
 
-const form = ref({ name: "", permissions: { read_notes: false, write_notes: false } })
+const form = ref({ name: "", permissions: { read_notes: false, write_notes: false }, project_id: null as string | null })
 
 const snippets = {
   auth: "Authorization: Bearer YOUR_API_KEY",
@@ -284,9 +292,10 @@ const results = await fetch(
 console.log(\`Found \${results.notes.length} notes, \${results.tasks.length} tasks\`);`,
 }
 
-function openCreate() {
-  form.value = { name: "", permissions: { read_notes: false, write_notes: false } }
+async function openCreate() {
+  form.value = { name: "", permissions: { read_notes: false, write_notes: false }, project_id: null }
   newKey.value = null
+  try { projects.value = (await api.get("/projects")).data } catch {}
   showModal.value = true
 }
 
