@@ -37,6 +37,24 @@
             <p class="font-medium">Account created!</p>
             <p class="mt-1">Check your email for a confirmation link. Some features may require email verification.</p>
           </div>
+          <template v-if="showTotpChallenge">
+            <h1 class="mb-1 font-display text-2xl font-semibold text-white">Two-Factor Authentication</h1>
+            <p class="mb-8 text-sm text-slate-400">Enter the code from your authenticator app.</p>
+            <form @submit.prevent="submitTotp" class="space-y-5">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-300">Authentication code</label>
+                <input v-model="totpCode" type="text" inputmode="numeric" autocomplete="one-time-code" class="w-full rounded-xl border border-slate-700/50 bg-surface px-4 py-3 text-center text-2xl tracking-[0.5em] text-white outline-none transition-all placeholder:text-slate-600 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20" placeholder="000000" maxlength="6" />
+              </div>
+              <div v-if="totpError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                <p>{{ totpError }}</p>
+              </div>
+              <button type="submit" :disabled="totpSubmitting" class="w-full rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:shadow-xl hover:shadow-violet-500/30 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ totpSubmitting ? 'Verifying...' : 'Verify' }}
+              </button>
+              <button type="button" @click="showTotpChallenge = false; totpCode = ''; totpError = ''" class="w-full text-center text-sm text-slate-500 hover:text-slate-400 transition-colors">Back to login</button>
+            </form>
+          </template>
+          <template v-else>
           <h1 class="mb-1 font-display text-2xl font-semibold text-white">Welcome back</h1>
           <p class="mb-8 text-sm text-slate-400">Sign in to your account to continue.</p>
           <form @submit.prevent="submit" class="space-y-5">
@@ -71,6 +89,7 @@
               <NuxtLink :to="'/register' + (redirect ? '?redirect=' + encodeURIComponent(redirect) : '')" class="font-medium text-violet-400 transition-colors hover:text-violet-300">Register</NuxtLink>
             </p>
           </form>
+          </template>
         </div>
       </div>
     </div>
@@ -102,6 +121,11 @@ const fieldErrors = reactive<{ email?: string; password?: string }>({})
 const rememberMe = ref(false)
 const showResend = ref(false)
 const resending = ref(false)
+const showTotpChallenge = ref(false)
+const totpCode = ref("")
+const totpError = ref("")
+const totpSubmitting = ref(false)
+const tempToken = ref("")
 
 function clearFieldError(field: "email" | "password") {
   fieldErrors[field] = undefined
@@ -128,7 +152,12 @@ const submit = async () => {
 
   submitting.value = true
   try {
-    await auth.login(email.value, password.value, rememberMe.value)
+    const result = await auth.login(email.value, password.value, rememberMe.value)
+    if (result.totp_required) {
+      tempToken.value = result.temp_token
+      showTotpChallenge.value = true
+      return
+    }
     await router.push(redirect || "/dashboard")
   } catch (error: any) {
     const status = error?.response?.status
@@ -158,6 +187,27 @@ const submit = async () => {
     }
   } finally {
     submitting.value = false
+  }
+}
+
+async function submitTotp() {
+  totpError.value = ""
+  if (totpCode.value.length !== 6 || !/^\d{6}$/.test(totpCode.value)) {
+    totpError.value = "Enter a 6-digit code"
+    return
+  }
+  totpSubmitting.value = true
+  try {
+    const res = await api.post("/auth/login/totp", { temp_token: tempToken.value, code: totpCode.value })
+    auth.setToken(res.data.access_token)
+    auth.refreshToken = res.data.refresh_token
+    await auth.fetchUser()
+    auth._persist()
+    await router.push(redirect || "/dashboard")
+  } catch (e: any) {
+    totpError.value = e?.response?.data?.detail || "Invalid code. Try again."
+  } finally {
+    totpSubmitting.value = false
   }
 }
 

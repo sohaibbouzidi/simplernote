@@ -24,6 +24,7 @@ class UserSchema(BaseModel):
     email: EmailStr
     is_active: bool
     email_confirmed: bool = True
+    totp_enabled: bool = False
     role: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -80,3 +81,22 @@ class ConfirmEmailSchema(BaseModel):
 
 class ResendConfirmationSchema(BaseModel):
     email: EmailStr
+
+
+class TOTPSetupResponse(BaseModel):
+    secret: str
+    provisioning_uri: str
+    qr_svg: str
+
+
+class TOTPVerifySchema(BaseModel):
+    code: str
+
+
+class TOTPDisableSchema(BaseModel):
+    password: str
+
+
+class TOTPLoginSchema(BaseModel):
+    temp_token: str
+    code: str

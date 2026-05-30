@@ -5,6 +5,7 @@ export const useAuthStore = defineStore("auth", {
   state: () => ({
     token: "",
     refreshToken: "",
+    totpEnabled: false,
     user: null as
       | null
       | {
@@ -63,6 +64,7 @@ export const useAuthStore = defineStore("auth", {
       try {
         const res = await api.get("/auth/me")
         this.user = res.data
+        this.totpEnabled = res.data.totp_enabled || false
         // if user has a picture (S3 key), request a presigned URL
         try {
           if (this.user?.picture) {
@@ -102,11 +104,15 @@ export const useAuthStore = defineStore("auth", {
     async login(email: string, password: string, rememberMe = false) {
       const api = getApiInstance()
       const response = await api.post("/auth/login", { email, password, remember_me: rememberMe })
+      if (response.data.totp_required) {
+        return { totp_required: true, temp_token: response.data.temp_token }
+      }
       this.token = response.data.access_token
       this.refreshToken = response.data.refresh_token
       setAuthToken(this.token)
       await this.fetchUser()
       this._persist()
+      return { totp_required: false }
     },
     async register(email: string, password: string, profile: { first_name: string; last_name: string; country: string; city: string }) {
       const api = getApiInstance()

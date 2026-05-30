@@ -6,11 +6,12 @@ from app.models.user import User
 from app.core.config import settings
 from app.core.rate_limit import rate_limit
 from app.db.session import get_db
+import pyotp
 from app.schemas.auth import (
     TokenSchema, UserCreateSchema, UserLoginSchema, UserSchema,
     TokenRefreshSchema, ChangePasswordSchema,
     ForgotPasswordSchema, ResetPasswordSchema, ConfirmEmailSchema,
-    ResendConfirmationSchema,
+    ResendConfirmationSchema, TOTPLoginSchema,
 )
 from app.services.auth import AuthService, oauth2_scheme
 from app.services.users import UserService
@@ -120,7 +121,7 @@ def reset_password(
     return {"message": "Password reset successfully"}
 
 
-@router.post("/login", response_model=TokenSchema)
+@router.post("/login")
 def login(
     form_data: UserLoginSchema,
     db: Session = Depends(get_db),
@@ -131,6 +132,13 @@ def login(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if settings.ENFORCE_EMAIL_CONFIRMATION and not user.email_confirmed:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please confirm your email before logging in.")
+    if user.totp_enabled:
+        temp_token = create_token(
+            {"sub": str(user.id), "type": "totp_temp"},
+            settings.JWT_SECRET, settings.JWT_ALGORITHM,
+            timedelta(minutes=5),
+        )
+        return {"totp_required": True, "temp_token": temp_token}
     user.last_login_at = datetime.utcnow()
     db.commit()
     ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id))
@@ -172,3 +180,28 @@ def change_password(
     current_user.password_hash = get_password_hash(data.new_password)
     db.commit()
     return {"message": "Password updated successfully"}
+
+
+@router.post("/login/totp", response_model=dict)
+def login_totp(
+    data: TOTPLoginSchema,
+    db: Session = Depends(get_db),
+    _=Depends(rate_limit(max_requests=10, window_seconds=60)),
+):
+    payload = decode_token(data.temp_token, settings.JWT_SECRET, [settings.JWT_ALGORITHM])
+    if not payload or payload.get("type") != "totp_temp":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired temp token")
+    user = UserService.get_by_id(db, payload["sub"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if not user.totp_secret:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="2FA not configured")
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(data.code, valid_window=1):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid TOTP code")
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+    ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id))
+    access_token = AuthService.create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    refresh_token = AuthService.create_refresh_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES))
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
