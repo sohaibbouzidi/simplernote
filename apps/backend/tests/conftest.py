@@ -6,8 +6,13 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.base import Base
+
+# Disable email sending in tests regardless of .env — use a fake SMTP host
+# so checks like "if not settings.SMTP_HOST" still pass but no real email is sent.
+settings.SMTP_HOST = "localhost"
 
 
 sa.event.listen(sa.Engine, "connect", lambda c, _: c.execute("PRAGMA journal_mode=WAL") or c.execute("PRAGMA foreign_keys=ON"))
