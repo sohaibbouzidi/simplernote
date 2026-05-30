@@ -7,6 +7,7 @@ from app.schemas.notes import NoteCreateSchema, NoteSchema, NoteUpdateSchema
 from app.services.notes import NoteService
 from app.api.deps import PermissionChecker
 from app.services.auth import AuthService
+from app.services.activity_logs import ActivityLogService
 
 router = APIRouter()
 
@@ -22,7 +23,9 @@ def list_notes(project_id: Optional[str] = None, note_type: Optional[str] = None
 @router.post("/", response_model=NoteSchema, status_code=status.HTTP_201_CREATED, dependencies=[Depends(PermissionChecker(["write_notes"]))])
 def create_note(note_in: NoteCreateSchema, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
     user_id = current_user.id
-    return NoteService.create_note(db, user_id, note_in)
+    note = NoteService.create_note(db, user_id, note_in)
+    ActivityLogService.record(db, user_id=str(user_id), action="create", entity_type="note", entity_id=str(note.id), project_id=str(note.project_id), payload={"title": note.title})
+    return note
 
 
 @router.get("/{note_id}", response_model=NoteSchema, dependencies=[Depends(PermissionChecker(["read_notes"]))])
@@ -40,13 +43,16 @@ def update_note(note_id: str, note_in: NoteUpdateSchema, db: Session = Depends(g
     note = NoteService.update_note(db, note_id, user_id, note_in)
     if not note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    ActivityLogService.record(db, user_id=str(user_id), action="update", entity_type="note", entity_id=note_id, project_id=str(note.project_id), payload={"title": note.title})
     return note
 
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(PermissionChecker(["write_notes"]))])
 def delete_note(note_id: str, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
     user_id = current_user.id
-    success = NoteService.delete_note(db, note_id, user_id)
-    if not success:
+    note = NoteService.get_note(db, note_id, user_id)
+    if not note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    ActivityLogService.record(db, user_id=str(user_id), action="delete", entity_type="note", entity_id=note_id, project_id=str(note.project_id), payload={"title": note.title})
+    NoteService.delete_note(db, note_id, user_id)
     return None

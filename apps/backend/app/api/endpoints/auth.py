@@ -14,6 +14,7 @@ from app.schemas.auth import (
 )
 from app.services.auth import AuthService, oauth2_scheme
 from app.services.users import UserService
+from app.services.activity_logs import ActivityLogService
 from app.services.email import send_confirmation_email, send_password_reset_email
 from app.utils.security import get_password_hash, verify_password, validate_password_strength, create_token, decode_token
 
@@ -35,6 +36,7 @@ def register(
     if err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
     user = UserService.create_user(db, user_in)
+    ActivityLogService.record(db, user_id=str(user.id), action="create", entity_type="user", entity_id=str(user.id), payload={"email": user.email})
     token = create_token(
         {"sub": str(user.id), "type": "email_confirmation"},
         settings.JWT_SECRET, settings.JWT_ALGORITHM,
@@ -131,6 +133,7 @@ def login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please confirm your email before logging in.")
     user.last_login_at = datetime.utcnow()
     db.commit()
+    ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id))
     access_token = AuthService.create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     refresh_token = AuthService.create_refresh_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
