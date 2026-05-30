@@ -36,7 +36,10 @@
               <NuxtLink v-if="note.project_id && note.project_name" :to="`/projects/${note.project_id}`" class="text-brand-400 hover:underline">{{ note.project_name }}</NuxtLink>
             </div>
           </div>
-          <button @click="openEdit(note)" class="shrink-0 rounded-md border border-slate-800 px-2.5 py-1 text-xs text-slate-400 hover:bg-slate-800">Edit</button>
+          <div class="flex shrink-0 items-center gap-2">
+            <button @click="confirmDeleteNote(note)" class="rounded-md border border-slate-800 px-2.5 py-1 text-xs text-red-400 hover:bg-slate-800">Delete</button>
+            <button @click="openEdit(note)" class="rounded-md border border-slate-800 px-2.5 py-1 text-xs text-slate-400 hover:bg-slate-800">Edit</button>
+          </div>
         </div>
       </div>
     </div>
@@ -65,6 +68,16 @@
         </div>
       </form>
     </Modal>
+
+    <Modal v-model="showDeleteNote" title="Delete note?">
+      <p class="text-sm text-slate-400 mb-6">
+        Delete <strong class="text-white">{{ deletingNote?.title }}</strong>? This cannot be undone.
+      </p>
+      <div class="flex justify-end gap-3">
+        <button @click="showDeleteNote = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
+        <button @click="deleteNote" class="rounded-md border border-slate-800 bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Delete</button>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -83,6 +96,8 @@ const error = ref("")
 const showModal = ref(false)
 const editing = ref<any | null>(null)
 const form = ref({ title: "", content: "", note_type: "", project_id: "" })
+const showDeleteNote = ref(false)
+const deletingNote = ref<any | null>(null)
 
 async function fetchNotes() {
   loading.value = true; error.value = ""
@@ -114,6 +129,22 @@ async function saveNote() {
     else await api.post("/notes", payload)
     showModal.value = false; await fetchNotes()
   } catch (e: any) { toast.error(e?.response?.data?.detail || "Error saving note") }
+}
+
+function confirmDeleteNote(note: any) {
+  deletingNote.value = note
+  showDeleteNote.value = true
+}
+
+async function deleteNote() {
+  if (!deletingNote.value) return
+  try {
+    await api.delete(`/notes/${deletingNote.value.id}`)
+    showDeleteNote.value = false
+    deletingNote.value = null
+    toast.success("Note deleted")
+    await fetchNotes()
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error deleting note") }
 }
 
 onMounted(() => { fetchNotes(); fetchProjects() })

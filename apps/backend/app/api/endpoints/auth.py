@@ -37,7 +37,7 @@ def register(
     if err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
     user = UserService.create_user(db, user_in)
-    ActivityLogService.record(db, user_id=str(user.id), action="create", entity_type="user", entity_id=str(user.id), payload={"email": user.email})
+    ActivityLogService.record(db, user_id=str(user.id), action="create", entity_type="user", entity_id=str(user.id), payload={"email": user.email}, auth_method="user")
     token = create_token(
         {"sub": str(user.id), "type": "email_confirmation"},
         settings.JWT_SECRET, settings.JWT_ALGORITHM,
@@ -141,7 +141,7 @@ def login(
         return {"totp_required": True, "temp_token": temp_token}
     user.last_login_at = datetime.utcnow()
     db.commit()
-    ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id))
+    ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id), auth_method="user")
     token_expire = settings.ACCESS_TOKEN_EXPIRE_MINUTES
     refresh_expire = settings.REFRESH_TOKEN_EXPIRE_MINUTES
     if form_data.remember_me:
@@ -201,7 +201,7 @@ def login_totp(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid TOTP code")
     user.last_login_at = datetime.utcnow()
     db.commit()
-    ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id))
+    ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id), auth_method="user")
     access_token = AuthService.create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     refresh_token = AuthService.create_refresh_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}

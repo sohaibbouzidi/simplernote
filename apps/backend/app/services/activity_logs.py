@@ -9,5 +9,5 @@ class ActivityLogService:
         return ActivityLogRepository.list(db, user_id=user_id, project_id=project_id)
 
     @staticmethod
-    def record(db: Session, user_id: str | None, action: str, entity_type: str, entity_id: str | None = None, project_id: str | None = None, payload: dict | None = None):
-        return ActivityLogRepository.create(db, user_id, action, entity_type, entity_id, project_id, payload)
+    def record(db: Session, user_id: str | None, action: str, entity_type: str, entity_id: str | None = None, project_id: str | None = None, payload: dict | None = None, auth_method: str = "user"):
+        return ActivityLogRepository.create(db, user_id, action, entity_type, entity_id, project_id, payload, auth_method)

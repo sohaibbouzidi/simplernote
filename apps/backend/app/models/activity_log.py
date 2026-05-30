@@ -17,6 +17,7 @@ class ActivityLog(Base):
     entity_type = Column(String(128), nullable=False)
     entity_id = Column(UUID(as_uuid=True), nullable=True)
     payload = Column(JSONB, nullable=True, default=dict)
+    auth_method = Column(String(16), nullable=False, default="user")
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
     project = relationship("Project", back_populates="activity_logs")

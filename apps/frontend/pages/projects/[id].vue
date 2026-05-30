@@ -93,10 +93,21 @@
             <input v-model="noteForm.note_type" placeholder="e.g. meeting, spec, idea" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white placeholder-slate-400 focus:border-brand-500 focus:outline-none" />
           </div>
           <div class="flex justify-end gap-3 pt-2">
+            <button type="button" @click="confirmDeleteNote(editingNote)" v-if="editingNote" class="rounded-md border border-slate-800 bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Delete</button>
             <button type="button" @click="showNoteModal = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
             <button type="submit" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400">{{ editingNote ? 'Save' : 'Create' }}</button>
           </div>
         </form>
+      </Modal>
+
+      <Modal v-model="showDeleteNote" title="Delete note?">
+        <p class="text-sm text-slate-400 mb-6">
+          Delete <strong class="text-white">{{ deletingNote?.title }}</strong>? This cannot be undone.
+        </p>
+        <div class="flex justify-end gap-3">
+          <button @click="showDeleteNote = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
+          <button @click="deleteNote" class="rounded-md border border-slate-800 bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Delete</button>
+        </div>
       </Modal>
     </div>
 
@@ -715,6 +726,8 @@ const notesLoading = ref(false)
 const showNoteModal = ref(false)
 const editingNote = ref<any | null>(null)
 const noteForm = ref({ title: "", content: "", note_type: "" })
+const showDeleteNote = ref(false)
+const deletingNote = ref<any | null>(null)
 
 async function fetchNotes() {
   notesLoading.value = true
@@ -746,6 +759,24 @@ async function saveNote() {
     showNoteModal.value = false
     await fetchNotes()
   } catch (e: any) { toast.error(e?.response?.data?.detail || "Error saving note") }
+}
+
+function confirmDeleteNote(note: any) {
+  if (!note) return
+  deletingNote.value = note
+  showDeleteNote.value = true
+}
+
+async function deleteNote() {
+  if (!deletingNote.value) return
+  try {
+    await api.delete(`/notes/${deletingNote.value.id}`)
+    showDeleteNote.value = false
+    showNoteModal.value = false
+    deletingNote.value = null
+    toast.success("Note deleted")
+    await fetchNotes()
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Error deleting note") }
 }
 
 const tasks = ref<any[]>([])

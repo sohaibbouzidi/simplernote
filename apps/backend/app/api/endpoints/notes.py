@@ -24,7 +24,7 @@ def list_notes(project_id: Optional[str] = None, note_type: Optional[str] = None
 def create_note(note_in: NoteCreateSchema, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
     user_id = current_user.id
     note = NoteService.create_note(db, user_id, note_in)
-    ActivityLogService.record(db, user_id=str(user_id), action="create", entity_type="note", entity_id=str(note.id), project_id=str(note.project_id), payload={"title": note.title})
+    ActivityLogService.record(db, user_id=str(user_id), action="create", entity_type="note", entity_id=str(note.id), project_id=str(note.project_id), payload={"title": note.title}, auth_method=getattr(current_user, '_auth_method', 'user'))
     return note
 
 
@@ -43,7 +43,7 @@ def update_note(note_id: str, note_in: NoteUpdateSchema, db: Session = Depends(g
     note = NoteService.update_note(db, note_id, user_id, note_in)
     if not note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-    ActivityLogService.record(db, user_id=str(user_id), action="update", entity_type="note", entity_id=note_id, project_id=str(note.project_id), payload={"title": note.title})
+    ActivityLogService.record(db, user_id=str(user_id), action="update", entity_type="note", entity_id=note_id, project_id=str(note.project_id), payload={"title": note.title}, auth_method=getattr(current_user, '_auth_method', 'user'))
     return note
 
 
@@ -53,6 +53,6 @@ def delete_note(note_id: str, db: Session = Depends(get_db), current_user=Depend
     note = NoteService.get_note(db, note_id, user_id)
     if not note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-    ActivityLogService.record(db, user_id=str(user_id), action="delete", entity_type="note", entity_id=note_id, project_id=str(note.project_id), payload={"title": note.title})
+    ActivityLogService.record(db, user_id=str(user_id), action="delete", entity_type="note", entity_id=note_id, project_id=str(note.project_id), payload={"title": note.title}, auth_method=getattr(current_user, '_auth_method', 'user'))
     NoteService.delete_note(db, note_id, user_id)
     return None

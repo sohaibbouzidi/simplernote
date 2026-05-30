@@ -19,7 +19,7 @@ def get_projects(db: Session = Depends(get_db), current_user=Depends(AuthService
 @router.post("/", response_model=ProjectSchema, status_code=status.HTTP_201_CREATED)
 def create_project(project_in: ProjectCreateSchema, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
     project = ProjectService.create_project(db, current_user.id, project_in)
-    ActivityLogService.record(db, user_id=str(current_user.id), action="create", entity_type="project", entity_id=str(project.id), project_id=str(project.id), payload={"name": project.name})
+    ActivityLogService.record(db, user_id=str(current_user.id), action="create", entity_type="project", entity_id=str(project.id), project_id=str(project.id), payload={"name": project.name}, auth_method=getattr(current_user, '_auth_method', 'user'))
     return project
 
 
@@ -36,7 +36,7 @@ def update_project(project_id: str, project_in: ProjectUpdateSchema, db: Session
     project = ProjectService.update_project(db, project_id, current_user.id, project_in)
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    ActivityLogService.record(db, user_id=str(current_user.id), action="update", entity_type="project", entity_id=project_id, project_id=project_id, payload={"name": project.name})
+    ActivityLogService.record(db, user_id=str(current_user.id), action="update", entity_type="project", entity_id=project_id, project_id=project_id, payload={"name": project.name}, auth_method=getattr(current_user, '_auth_method', 'user'))
     return project
 
 
@@ -45,6 +45,6 @@ def delete_project(project_id: str, db: Session = Depends(get_db), current_user=
     project = ProjectService.get_project(db, project_id, current_user.id)
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    ActivityLogService.record(db, user_id=str(current_user.id), action="delete", entity_type="project", entity_id=project_id, project_id=project_id, payload={"name": project.name})
+    ActivityLogService.record(db, user_id=str(current_user.id), action="delete", entity_type="project", entity_id=project_id, project_id=project_id, payload={"name": project.name}, auth_method=getattr(current_user, '_auth_method', 'user'))
     ProjectService.delete_project(db, project_id, current_user.id)
     return None

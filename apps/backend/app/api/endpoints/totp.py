@@ -60,7 +60,7 @@ def verify_totp(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid code")
     current_user.totp_enabled = True
     db.commit()
-    ActivityLogService.record(db, user_id=str(current_user.id), action="enable", entity_type="totp", entity_id=str(current_user.id))
+    ActivityLogService.record(db, user_id=str(current_user.id), action="enable", entity_type="totp", entity_id=str(current_user.id), auth_method=getattr(current_user, '_auth_method', 'user'))
     return {"message": "2FA enabled successfully"}
 
 
@@ -77,5 +77,5 @@ def disable_totp(
     current_user.totp_secret = None
     current_user.totp_enabled = False
     db.commit()
-    ActivityLogService.record(db, user_id=str(current_user.id), action="disable", entity_type="totp", entity_id=str(current_user.id))
+    ActivityLogService.record(db, user_id=str(current_user.id), action="disable", entity_type="totp", entity_id=str(current_user.id), auth_method=getattr(current_user, '_auth_method', 'user'))
     return {"message": "2FA disabled successfully"}

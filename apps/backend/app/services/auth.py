@@ -49,10 +49,21 @@ class AuthService:
             user = UserService.get_by_id(db, key_data["user_id"])
             if not user:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+            user._auth_method = "api_key"
             logger.info("api_key auth | user={} key_id={}", user.email, key_data.get("api_key_id", "?"))
             return user
 
         payload = decode_token(token, settings.JWT_SECRET, [settings.JWT_ALGORITHM])
+        if not payload or "sub" not in payload:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication credentials")
+        user = UserService.get_by_id(db, payload["sub"])
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        if not user.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
+        user._auth_method = "user"
+        logger.info("jwt auth | user={}", user.email)
+        return user
         if not payload or "sub" not in payload:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication credentials")
         user = UserService.get_by_id(db, payload["sub"])

@@ -12,6 +12,7 @@ class ActivityLogSchema(BaseModel):
     entity_type: str
     entity_id: Optional[UUID] = None
     payload: Optional[Dict[str, object]] = None
+    auth_method: str = "user"
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

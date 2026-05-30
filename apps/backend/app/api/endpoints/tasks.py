@@ -20,7 +20,7 @@ def list_tasks(project_id: Optional[str] = None, status: Optional[str] = None, d
 @router.post("/", response_model=TaskSchema, status_code=status.HTTP_201_CREATED, dependencies=[Depends(PermissionChecker(["write_tasks"]))])
 def create_task(task_in: TaskCreateSchema, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
     task = TaskService.create_task(db, current_user.id, task_in)
-    ActivityLogService.record(db, user_id=str(current_user.id), action="create", entity_type="task", entity_id=str(task.id), project_id=str(task.project_id), payload={"title": task.title})
+    ActivityLogService.record(db, user_id=str(current_user.id), action="create", entity_type="task", entity_id=str(task.id), project_id=str(task.project_id), payload={"title": task.title}, auth_method=getattr(current_user, '_auth_method', 'user'))
     return task
 
 
@@ -37,7 +37,7 @@ def update_task(task_id: str, task_in: TaskUpdateSchema, db: Session = Depends(g
     task = TaskService.update_task(db, task_id, current_user.id, task_in)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    ActivityLogService.record(db, user_id=str(current_user.id), action="update", entity_type="task", entity_id=task_id, project_id=str(task.project_id), payload={"title": task.title})
+    ActivityLogService.record(db, user_id=str(current_user.id), action="update", entity_type="task", entity_id=task_id, project_id=str(task.project_id), payload={"title": task.title}, auth_method=getattr(current_user, '_auth_method', 'user'))
     return task
 
 
@@ -46,6 +46,6 @@ def delete_task(task_id: str, db: Session = Depends(get_db), current_user=Depend
     task = TaskService.get_task(db, task_id, current_user.id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    ActivityLogService.record(db, user_id=str(current_user.id), action="delete", entity_type="task", entity_id=task_id, project_id=str(task.project_id), payload={"title": task.title})
+    ActivityLogService.record(db, user_id=str(current_user.id), action="delete", entity_type="task", entity_id=task_id, project_id=str(task.project_id), payload={"title": task.title}, auth_method=getattr(current_user, '_auth_method', 'user'))
     TaskService.delete_task(db, task_id, current_user.id)
     return None
