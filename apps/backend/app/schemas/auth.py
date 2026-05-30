@@ -5,11 +5,16 @@ from typing import Optional
 class UserCreateSchema(BaseModel):
     email: EmailStr
     password: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    country: Optional[str] = None
-    city: Optional[str] = None
+    first_name: str
+    last_name: str
+    country: str
+    city: str
     picture: Optional[str] = None
+
+
+class UserLoginSchema(BaseModel):
+    email: EmailStr
+    password: str
 
 
 class UserSchema(BaseModel):
@@ -33,6 +38,11 @@ class UserUpdateSchema(BaseModel):
     country: Optional[str] = None
     city: Optional[str] = None
     picture: Optional[str] = None
+
+
+class ChangePasswordSchema(BaseModel):
+    old_password: str
+    new_password: str
 
 
 class TokenSchema(BaseModel):

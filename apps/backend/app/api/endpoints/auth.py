@@ -6,9 +6,10 @@ from app.models.user import User
 from app.core.config import settings
 from app.core.rate_limit import rate_limit
 from app.db.session import get_db
-from app.schemas.auth import TokenSchema, UserCreateSchema, UserSchema, TokenRefreshSchema
+from app.schemas.auth import TokenSchema, UserCreateSchema, UserLoginSchema, UserSchema, TokenRefreshSchema, ChangePasswordSchema
 from app.services.auth import AuthService, oauth2_scheme
 from app.services.users import UserService
+from app.utils.security import get_password_hash, verify_password, validate_password_strength
 
 router = APIRouter()
 
@@ -21,13 +22,16 @@ def register(
 ):
     if UserService.get_by_email(db, user_in.email):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+    err = validate_password_strength(user_in.password)
+    if err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
     user = UserService.create_user(db, user_in)
     return user
 
 
 @router.post("/login", response_model=TokenSchema)
 def login(
-    form_data: UserCreateSchema,
+    form_data: UserLoginSchema,
     db: Session = Depends(get_db),
     _=Depends(rate_limit(max_requests=10, window_seconds=60)),
 ):
@@ -51,3 +55,19 @@ def refresh_token(refresh: TokenRefreshSchema, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserSchema)
 def get_me(current_user: User = Depends(AuthService.get_current_user)):
     return current_user
+
+
+@router.patch("/password", response_model=dict)
+def change_password(
+    data: ChangePasswordSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    if not verify_password(data.old_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    err = validate_password_strength(data.new_password)
+    if err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+    current_user.password_hash = get_password_hash(data.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}

@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -22,7 +22,7 @@ def list_users(
 @router.patch("/users/{user_id}/role", response_model=UserSchema)
 def update_user_role(
     user_id: uuid.UUID,
-    role: str,
+    role: str = Body(..., embed=True),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):

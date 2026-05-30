@@ -108,9 +108,9 @@ export const useAuthStore = defineStore("auth", {
       await this.fetchUser()
       this._persist()
     },
-    async register(email: string, password: string) {
+    async register(email: string, password: string, profile: { first_name: string; last_name: string; country: string; city: string }) {
       const api = getApiInstance()
-      const response = await api.post("/auth/register", { email, password })
+      const response = await api.post("/auth/register", { email, password, ...profile })
       this.user = response.data
       return response.data
     },
