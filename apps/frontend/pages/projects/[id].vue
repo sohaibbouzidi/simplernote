@@ -68,7 +68,7 @@
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
               <p class="font-medium text-white truncate">{{ note.title }}</p>
-              <p class="text-sm text-slate-400 line-clamp-2 mt-0.5">{{ note.summary || note.content || 'No content' }}</p>
+              <p class="text-sm text-slate-400 line-clamp-2 mt-0.5">{{ stripHtml(note.summary || note.content || 'No content') }}</p>
             </div>
             <div class="flex shrink-0 items-center gap-2 text-xs text-slate-400">
               <span v-if="note.note_type" class="rounded-full border border-slate-700 px-2 py-0.5 text-xs">{{ note.note_type }}</span>
@@ -86,7 +86,7 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-white mb-1">Content</label>
-            <textarea v-model="noteForm.content" rows="5" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none" />
+            <RichTextEditor v-model="noteForm.content" placeholder="Write your note content here..." />
           </div>
           <div>
             <label class="block text-sm font-medium text-white mb-1">Type</label>
@@ -895,6 +895,12 @@ async function deleteAiContext() {
   } catch (e: any) {
     toast.error(e?.response?.data?.detail || "Failed to delete")
   }
+}
+
+function stripHtml(html: string) {
+  const div = document.createElement("div")
+  div.innerHTML = html
+  return div.textContent || div.innerText || ""
 }
 
 function formatDate(d: string) {

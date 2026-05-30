@@ -14,7 +14,7 @@ from app.utils.security import get_password_hash, verify_password, validate_pass
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserSchema)
+@router.post("/register", response_model=UserSchema, status_code=201)
 def register(
     user_in: UserCreateSchema,
     db: Session = Depends(get_db),

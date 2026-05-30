@@ -10,6 +10,10 @@
   "dependencies": {
     "@nuxtjs/tailwindcss": "^6.6.3",
     "@pinia/nuxt": "^0.4.0",
+    "@tiptap/extension-link": "^3.23.6",
+    "@tiptap/extension-placeholder": "^3.23.6",
+    "@tiptap/starter-kit": "^3.23.6",
+    "@tiptap/vue-3": "^3.23.6",
     "axios": "^1.4.0",
     "nuxt": "^3.8.0",
     "pinia": "^2.3.1"
