@@ -16,6 +16,7 @@ class UserCreateSchema(BaseModel):
 class UserLoginSchema(BaseModel):
     email: EmailStr
     password: str
+    remember_me: bool = False
 
 
 class UserSchema(BaseModel):

@@ -134,8 +134,13 @@ def login(
     user.last_login_at = datetime.utcnow()
     db.commit()
     ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id))
-    access_token = AuthService.create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
-    refresh_token = AuthService.create_refresh_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES))
+    token_expire = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    refresh_expire = settings.REFRESH_TOKEN_EXPIRE_MINUTES
+    if form_data.remember_me:
+        token_expire = 60 * 24 * 30  # 30 days
+        refresh_expire = 60 * 24 * 30
+    access_token = AuthService.create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=token_expire))
+    refresh_token = AuthService.create_refresh_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=refresh_expire))
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 

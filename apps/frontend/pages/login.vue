@@ -53,6 +53,10 @@
               <input v-model="password" @input="clearFieldError('password')" type="password" autocomplete="current-password" :class="['w-full rounded-xl border bg-surface px-4 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-600 focus:ring-1', fieldErrors.password ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20' : 'border-slate-700/50 focus:border-violet-500/50 focus:ring-violet-500/20']" placeholder="Enter your password" />
               <p v-if="fieldErrors.password" class="mt-1.5 text-xs text-red-400">{{ fieldErrors.password }}</p>
             </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input v-model="rememberMe" type="checkbox" class="rounded border-slate-700 bg-surface text-violet-500 focus:ring-violet-500/20" />
+              <span class="text-sm text-slate-400">Keep me signed in for 30 days</span>
+            </label>
             <div v-if="formError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
               <p>{{ formError }}</p>
               <button v-if="showResend" @click="resendConfirmation" :disabled="resending" class="mt-2 text-violet-400 underline hover:text-violet-300 disabled:opacity-50">
@@ -95,6 +99,7 @@ const showConfirmationBanner = route.query.registered === "1"
 const submitting = ref(false)
 const formError = ref("")
 const fieldErrors = reactive<{ email?: string; password?: string }>({})
+const rememberMe = ref(false)
 const showResend = ref(false)
 const resending = ref(false)
 
@@ -123,7 +128,7 @@ const submit = async () => {
 
   submitting.value = true
   try {
-    await auth.login(email.value, password.value)
+    await auth.login(email.value, password.value, rememberMe.value)
     await router.push(redirect || "/dashboard")
   } catch (error: any) {
     const status = error?.response?.status

@@ -99,9 +99,9 @@ export const useAuthStore = defineStore("auth", {
       this._persist()
       return res.data
     },
-    async login(email: string, password: string) {
+    async login(email: string, password: string, rememberMe = false) {
       const api = getApiInstance()
-      const response = await api.post("/auth/login", { email, password })
+      const response = await api.post("/auth/login", { email, password, remember_me: rememberMe })
       this.token = response.data.access_token
       this.refreshToken = response.data.refresh_token
       setAuthToken(this.token)
