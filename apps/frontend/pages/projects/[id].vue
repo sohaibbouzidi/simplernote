@@ -507,6 +507,8 @@ curl -X POST "http://localhost:8000/api/tasks/" \\
 | POST   | \`/api/ai-context/\`                     |
 | PATCH  | \`/api/ai-context/{id}\`                 |
 | DELETE | \`/api/ai-context/{id}\`                 |
+| POST   | \`/api/ai-context/import\`               |
+| GET    | \`/api/ai-context/search?query=...\`      |
 
 ---
 
@@ -537,6 +539,32 @@ curl -X POST "http://localhost:8000/api/ai-context/" \\
 
 ---
 
+## Import Context from Notes & Tasks
+
+Batch-import all notes and tasks from a project into the AI context document (auto-generates a structured summary).
+
+\`\`\`bash id="ctx3"
+curl -X POST "http://localhost:8000/api/ai-context/import" \\
+-H "Authorization: Bearer \$TOKEN" \\
+-H "Content-Type: application/json" \\
+-d '{
+  "project_id": "${projectId}"
+}'
+\`\`\`
+
+---
+
+## Search Notes & Tasks
+
+Search across notes and tasks in a project by text query.
+
+\`\`\`bash id="ctx4"
+curl "http://localhost:8000/api/ai-context/search?query=deployment&project_id=${projectId}" \\
+-H "Authorization: Bearer \$TOKEN"
+\`\`\`
+
+---
+
 # MEMORY-FIRST EXECUTION RULE
 
 Before any response:
@@ -550,13 +578,13 @@ Never recreate existing knowledge.
 
 ---
 
-# AI CONTEXT IMPORT (BOOTSTRAP ONLY)
+# AI CONTEXT IMPORT
 
-Use only for initialization or migration.
+Use \`POST /api/ai-context/import\` to batch-import all notes and tasks into the project's AI context document.
 
-* NOT for incremental updates
-* MUST include project_id
-* MUST include notes or tasks
+* For initialization or migration
+* Can be called multiple times (updates existing context)
+* Requires \`write_ai_context\` permission
 
 ---
 
