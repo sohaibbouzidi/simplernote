@@ -53,7 +53,12 @@
               <input v-model="password" @input="clearFieldError('password')" type="password" autocomplete="current-password" :class="['w-full rounded-xl border bg-surface px-4 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-600 focus:ring-1', fieldErrors.password ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20' : 'border-slate-700/50 focus:border-violet-500/50 focus:ring-violet-500/20']" placeholder="Enter your password" />
               <p v-if="fieldErrors.password" class="mt-1.5 text-xs text-red-400">{{ fieldErrors.password }}</p>
             </div>
-            <p v-if="formError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">{{ formError }}</p>
+            <div v-if="formError" class="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              <p>{{ formError }}</p>
+              <button v-if="showResend" @click="resendConfirmation" :disabled="resending" class="mt-2 text-violet-400 underline hover:text-violet-300 disabled:opacity-50">
+                {{ resending ? "Sending..." : "Resend confirmation email" }}
+              </button>
+            </div>
             <button type="submit" :disabled="submitting" class="w-full rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:shadow-xl hover:shadow-violet-500/30 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed">
               {{ submitting ? 'Signing in...' : 'Sign in' }}
             </button>
@@ -73,9 +78,11 @@ import { ref, reactive } from "vue"
 import { useRouter, useRoute } from "#app"
 import { useAuthStore } from "@/stores/auth"
 import { useToast } from "@/composables/useToast"
+import { getApiInstance } from "@/services/api"
 
 definePageMeta({ layout: false })
 
+const api = getApiInstance()
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
@@ -88,6 +95,8 @@ const showConfirmationBanner = route.query.registered === "1"
 const submitting = ref(false)
 const formError = ref("")
 const fieldErrors = reactive<{ email?: string; password?: string }>({})
+const showResend = ref(false)
+const resending = ref(false)
 
 function clearFieldError(field: "email" | "password") {
   fieldErrors[field] = undefined
@@ -126,6 +135,10 @@ const submit = async () => {
       formError.value = "Too many login attempts. Please wait a moment and try again."
     } else if (status === 401) {
       formError.value = "Invalid email or password."
+      showResend.value = false
+    } else if (status === 403) {
+      formError.value = detail || "Please confirm your email before logging in."
+      showResend.value = true
     } else if (status === 422 && Array.isArray(detail)) {
       detail.forEach((err: any) => {
         const field = err.loc?.at(-1)
@@ -140,6 +153,19 @@ const submit = async () => {
     }
   } finally {
     submitting.value = false
+  }
+}
+
+async function resendConfirmation() {
+  resending.value = true
+  try {
+    await api.post("/auth/resend-confirmation", { email: email.value })
+    formError.value = "Confirmation email sent. Check your inbox."
+    showResend.value = false
+  } catch (e: any) {
+    formError.value = e?.response?.data?.detail || "Failed to resend. Try again later."
+  } finally {
+    resending.value = false
   }
 }
 </script>

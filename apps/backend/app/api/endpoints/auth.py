@@ -10,6 +10,7 @@ from app.schemas.auth import (
     TokenSchema, UserCreateSchema, UserLoginSchema, UserSchema,
     TokenRefreshSchema, ChangePasswordSchema,
     ForgotPasswordSchema, ResetPasswordSchema, ConfirmEmailSchema,
+    ResendConfirmationSchema,
 )
 from app.services.auth import AuthService, oauth2_scheme
 from app.services.users import UserService
@@ -61,6 +62,25 @@ def confirm_email(
     return {"message": "Email confirmed successfully"}
 
 
+@router.post("/resend-confirmation", response_model=dict)
+def resend_confirmation(
+    data: ResendConfirmationSchema,
+    db: Session = Depends(get_db),
+    _=Depends(rate_limit(max_requests=5, window_seconds=60)),
+):
+    if not settings.SMTP_HOST:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email sending is not configured")
+    user = UserService.get_by_email(db, data.email)
+    if user and not user.email_confirmed:
+        token = create_token(
+            {"sub": str(user.id), "type": "email_confirmation"},
+            settings.JWT_SECRET, settings.JWT_ALGORITHM,
+            timedelta(minutes=CONFIRM_TOKEN_EXPIRE_MINUTES),
+        )
+        send_confirmation_email(user.email, token)
+    return {"message": "If an account with that email exists, a confirmation email has been sent."}
+
+
 @router.post("/forgot-password", response_model=dict)
 def forgot_password(
     data: ForgotPasswordSchema,
@@ -107,6 +127,8 @@ def login(
     user = AuthService.authenticate(db, form_data.email, form_data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if settings.ENFORCE_EMAIL_CONFIRMATION and not user.email_confirmed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please confirm your email before logging in.")
     user.last_login_at = datetime.utcnow()
     db.commit()
     access_token = AuthService.create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))

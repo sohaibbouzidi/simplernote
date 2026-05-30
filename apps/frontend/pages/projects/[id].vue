@@ -218,8 +218,8 @@
       </Modal>
     </div>
 
-    <div v-if="activeTab === 'settings'" class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div class="space-y-8 lg:col-span-2">
+    <div v-if="activeTab === 'settings'" class="space-y-8">
+      <div class="space-y-8">
         <section class="rounded-lg border border-slate-800">
           <div class="border-b border-slate-800 px-5 py-3">
             <h2 class="text-base font-semibold text-white">Project info</h2>

@@ -160,3 +160,53 @@ class TestAuth:
             "new_password": "NewValid1!",
         })
         assert resp.status_code == 400
+
+    def test_resend_confirmation_smtp_unset(self, client, user_data):
+        from app.core.config import settings
+        original = settings.SMTP_HOST
+        settings.SMTP_HOST = None
+        try:
+            client.post("/api/auth/register", json=user_data)
+            resp = client.post("/api/auth/resend-confirmation", json={"email": user_data["email"]})
+            assert resp.status_code == 400
+            assert "not configured" in resp.json()["detail"].lower()
+        finally:
+            settings.SMTP_HOST = original
+
+    def test_resend_confirmation_unknown_email(self, client):
+        resp = client.post("/api/auth/resend-confirmation", json={"email": "unknown@example.com"})
+        assert resp.status_code == 200
+        assert "sent" in resp.json()["message"].lower()
+
+    def test_login_blocked_when_enforcing(self, client, user_data):
+        from app.core.config import settings
+        settings.ENFORCE_EMAIL_CONFIRMATION = True
+        try:
+            client.post("/api/auth/register", json=user_data)
+            resp = client.post("/api/auth/login", json={
+                "email": user_data["email"],
+                "password": user_data["password"],
+            })
+            assert resp.status_code == 403
+            assert "confirm" in resp.json()["detail"].lower()
+        finally:
+            settings.ENFORCE_EMAIL_CONFIRMATION = False
+
+    def test_login_allowed_when_enforcing_and_confirmed(self, client, user_data, db):
+        from app.core.config import settings
+        from app.models.user import User
+        test_email = "confirmed@example.com"
+        client.post("/api/auth/register", json={**user_data, "email": test_email})
+        user = db.query(User).filter(User.email == test_email).first()
+        user.email_confirmed = True
+        db.commit()
+        settings.ENFORCE_EMAIL_CONFIRMATION = True
+        try:
+            resp = client.post("/api/auth/login", json={
+                "email": test_email,
+                "password": user_data["password"],
+            })
+            assert resp.status_code == 200
+            assert "access_token" in resp.json()
+        finally:
+            settings.ENFORCE_EMAIL_CONFIRMATION = False

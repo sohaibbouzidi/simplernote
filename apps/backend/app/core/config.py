@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = "Simplernote"
     # Base URL for email links (e.g. http://localhost:3000)
     BASE_URL: str = "http://localhost:3000"
+    # When True, login is blocked for users with unconfirmed email
+    ENFORCE_EMAIL_CONFIRMATION: bool = False
 
 
 @lru_cache()

@@ -75,3 +75,7 @@ class ResetPasswordSchema(BaseModel):
 
 class ConfirmEmailSchema(BaseModel):
     token: str
+
+
+class ResendConfirmationSchema(BaseModel):
+    email: EmailStr
