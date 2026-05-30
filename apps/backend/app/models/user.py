@@ -16,6 +16,8 @@ class User(Base):
     email_confirmed = Column(Boolean, default=False, nullable=False)
     role = Column(String(20), default="user", nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
+    profile_updated_at = Column(DateTime(timezone=True), nullable=True)
     first_name = Column(String(128), nullable=True)
     last_name = Column(String(128), nullable=True)
     country = Column(String(100), nullable=True)

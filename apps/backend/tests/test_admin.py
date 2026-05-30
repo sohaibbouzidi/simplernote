@@ -6,7 +6,12 @@ class TestAdmin:
         token, headers = admin_setup
         resp = client.get("/api/admin/users", headers=headers)
         assert resp.status_code == 200
-        assert len(resp.json()) >= 1
+        data = resp.json()
+        assert len(data) >= 1
+        user = data[0]
+        assert "created_at" in user
+        assert "last_login_at" in user
+        assert "email_confirmed" in user
 
     def test_list_users_denied_for_user(self, client, auth_header):
         resp = client.get("/api/admin/users", headers=auth_header)

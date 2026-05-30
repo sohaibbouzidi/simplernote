@@ -23,7 +23,9 @@
             <th class="px-5 py-3 font-medium">Email</th>
             <th class="px-5 py-3 font-medium">Role</th>
             <th class="px-5 py-3 font-medium">Active</th>
+            <th class="px-5 py-3 font-medium">Is Valid</th>
             <th class="px-5 py-3 font-medium">Created</th>
+            <th class="px-5 py-3 font-medium">Last Login</th>
             <th class="px-5 py-3 font-medium">Actions</th>
           </tr>
         </thead>
@@ -37,7 +39,11 @@
             <td class="px-5 py-3">
               <span :class="user.is_active ? 'text-green-400' : 'text-red-400'" class="text-xs font-medium">{{ user.is_active ? "Active" : "Inactive" }}</span>
             </td>
+            <td class="px-5 py-3">
+              <span :class="user.email_confirmed ? 'text-green-400' : 'text-red-400'" class="text-xs font-medium">{{ user.email_confirmed ? "Valid" : "Pending" }}</span>
+            </td>
             <td class="px-5 py-3 text-xs text-slate-400">{{ formatDate(user.created_at) }}</td>
+            <td class="px-5 py-3 text-xs text-slate-400">{{ user.last_login_at ? formatDate(user.last_login_at) : "—" }}</td>
             <td class="px-5 py-3">
               <div class="flex items-center gap-2">
                 <button v-if="user.role !== 'admin'" @click="promote(user.id)" class="rounded-md border border-slate-800 px-2.5 py-1 text-xs text-white hover:bg-slate-800">Promote</button>

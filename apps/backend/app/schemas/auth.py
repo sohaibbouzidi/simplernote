@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, UUID4
 from typing import Optional
 
@@ -28,6 +29,9 @@ class UserSchema(BaseModel):
     country: Optional[str] = None
     city: Optional[str] = None
     picture: Optional[str] = None
+    created_at: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
+    profile_updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

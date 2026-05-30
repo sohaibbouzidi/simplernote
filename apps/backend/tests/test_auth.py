@@ -56,6 +56,15 @@ class TestAuth:
         assert "refresh_token" in data
         assert data["token_type"] == "bearer"
 
+    def test_login_updates_last_login_at(self, client, user_data):
+        client.post("/api/auth/register", json=user_data)
+        token = client.post("/api/auth/login", json={
+            "email": user_data["email"],
+            "password": user_data["password"],
+        }).json()["access_token"]
+        me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+        assert me["last_login_at"] is not None
+
     def test_login_wrong_password(self, client, user_data):
         client.post("/api/auth/register", json=user_data)
         resp = client.post("/api/auth/login", json={
