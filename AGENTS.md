@@ -62,9 +62,14 @@ You can interact with Simplernote programmatically using API keys. All endpoints
 ### Auth — user authentication
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| POST | `/auth/register` | Register a new user |
+| POST | `/auth/register` | Register a new user (sends confirmation email) |
 | POST | `/auth/login` | Login |
 | POST | `/auth/refresh` | Refresh access token |
+| POST | `/auth/confirm-email` | Confirm email address with token |
+| POST | `/auth/forgot-password` | Request password reset email |
+| POST | `/auth/reset-password` | Reset password with token |
+| GET | `/auth/me` | Get current user profile |
+| PATCH | `/auth/password` | Change password (requires auth)
 
 ---
 

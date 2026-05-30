@@ -33,6 +33,10 @@
           </NuxtLink>
         </div>
         <div class="rounded-2xl border border-slate-800/60 bg-surface-50 p-8 shadow-2xl shadow-black/40">
+          <div v-if="showConfirmationBanner" class="mb-6 rounded-lg bg-violet-500/10 px-4 py-3 text-sm text-violet-300">
+            <p class="font-medium">Account created!</p>
+            <p class="mt-1">Check your email for a confirmation link. Some features may require email verification.</p>
+          </div>
           <h1 class="mb-1 font-display text-2xl font-semibold text-white">Welcome back</h1>
           <p class="mb-8 text-sm text-slate-400">Sign in to your account to continue.</p>
           <form @submit.prevent="submit" class="space-y-5">
@@ -42,7 +46,10 @@
               <p v-if="fieldErrors.email" class="mt-1.5 text-xs text-red-400">{{ fieldErrors.email }}</p>
             </div>
             <div>
-              <label class="mb-2 block text-sm font-medium text-slate-300">Password</label>
+              <div class="mb-2 flex items-center justify-between">
+                <label class="block text-sm font-medium text-slate-300">Password</label>
+                <NuxtLink to="/forgot-password" class="text-xs font-medium text-violet-400 transition-colors hover:text-violet-300">Forgot password?</NuxtLink>
+              </div>
               <input v-model="password" @input="clearFieldError('password')" type="password" autocomplete="current-password" :class="['w-full rounded-xl border bg-surface px-4 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-600 focus:ring-1', fieldErrors.password ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20' : 'border-slate-700/50 focus:border-violet-500/50 focus:ring-violet-500/20']" placeholder="Enter your password" />
               <p v-if="fieldErrors.password" class="mt-1.5 text-xs text-red-400">{{ fieldErrors.password }}</p>
             </div>
@@ -77,6 +84,7 @@ const toast = useToast()
 const email = ref("")
 const password = ref("")
 const redirect = (route.query.redirect as string) || ""
+const showConfirmationBanner = route.query.registered === "1"
 const submitting = ref(false)
 const formError = ref("")
 const fieldErrors = reactive<{ email?: string; password?: string }>({})

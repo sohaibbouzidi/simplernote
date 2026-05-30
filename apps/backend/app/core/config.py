@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     # Allowed content types for profile images
     ALLOWED_IMAGE_CONTENT_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
 
+    # SMTP / Email
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAIL_FROM: Optional[str] = None
+    EMAIL_FROM_NAME: str = "Simplernote"
+    # Base URL for email links (e.g. http://localhost:3000)
+    BASE_URL: str = "http://localhost:3000"
+
 
 @lru_cache()
 def get_settings() -> Settings:

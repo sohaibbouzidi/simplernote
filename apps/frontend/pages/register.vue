@@ -161,7 +161,7 @@ const submit = async () => {
       country: country.value,
       city: city.value,
     })
-    await router.push("/login" + (redirect ? "?redirect=" + encodeURIComponent(redirect) : ""))
+    await router.push("/login?registered=1" + (redirect ? "&redirect=" + encodeURIComponent(redirect) : ""))
   } catch (error: any) {
     const status = error?.response?.status
     const detail = error?.response?.data?.detail

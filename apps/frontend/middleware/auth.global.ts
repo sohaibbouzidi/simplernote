@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/stores/auth"
 
 export default defineNuxtRouteMiddleware((to) => {
-  const publicPaths = ["/", "/login", "/register"]
+  const publicPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/confirm-email"]
   if (publicPaths.includes(to.path)) return
 
   const auth = useAuthStore()

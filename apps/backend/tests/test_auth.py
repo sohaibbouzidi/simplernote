@@ -15,6 +15,7 @@ class TestAuth:
         data = resp.json()
         assert data["email"] == "newuser@example.com"
         assert data["first_name"] == "Jane"
+        assert data["email_confirmed"] is False
         assert "id" in data
 
     def test_register_duplicate_email(self, client, user_data):
@@ -100,6 +101,7 @@ class TestAuth:
         resp = client.get("/api/auth/me", headers=auth_header)
         assert resp.status_code == 200
         assert resp.json()["email"] == user_data["email"]
+        assert "email_confirmed" in resp.json()
 
     def test_me_without_token(self, client):
         resp = client.get("/api/auth/me")
@@ -115,3 +117,37 @@ class TestAuth:
         resp = client.post("/api/auth/refresh", json={"refresh_token": refresh})
         assert resp.status_code == 200
         assert "access_token" in resp.json()
+
+    def test_confirm_email(self, client, user_data):
+        register_resp = client.post("/api/auth/register", json=user_data)
+        assert register_resp.status_code == 201
+        assert register_resp.json()["email_confirmed"] is False
+        me_resp = client.post("/api/auth/login", json={
+            "email": user_data["email"],
+            "password": user_data["password"],
+        })
+        token = me_resp.json()["access_token"]
+        me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert me.json()["email_confirmed"] is False
+        # Without SMTP configured, the email send is a no-op
+        # We test the endpoint directly via /me checking email_confirmed is False
+        resp = client.post("/api/auth/confirm-email", json={"token": "invalid-token"})
+        assert resp.status_code == 400
+
+    def test_forgot_password(self, client, user_data):
+        client.post("/api/auth/register", json=user_data)
+        resp = client.post("/api/auth/forgot-password", json={"email": user_data["email"]})
+        assert resp.status_code == 200
+        assert "sent" in resp.json()["message"].lower()
+
+    def test_forgot_password_nonexistent(self, client):
+        resp = client.post("/api/auth/forgot-password", json={"email": "noone@example.com"})
+        assert resp.status_code == 200
+        assert "sent" in resp.json()["message"].lower()
+
+    def test_reset_password_invalid_token(self, client):
+        resp = client.post("/api/auth/reset-password", json={
+            "token": "invalid-token",
+            "new_password": "NewValid1!",
+        })
+        assert resp.status_code == 400

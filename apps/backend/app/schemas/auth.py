@@ -21,6 +21,7 @@ class UserSchema(BaseModel):
     id: UUID4
     email: EmailStr
     is_active: bool
+    email_confirmed: bool = True
     role: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -57,3 +58,16 @@ class TokenRefreshSchema(BaseModel):
 
 class TokenPayload(BaseModel):
     sub: str
+
+
+class ForgotPasswordSchema(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordSchema(BaseModel):
+    token: str
+    new_password: str
+
+
+class ConfirmEmailSchema(BaseModel):
+    token: str
