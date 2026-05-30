@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -48,6 +49,7 @@ class AuthService:
             user = UserService.get_by_id(db, key_data["user_id"])
             if not user:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+            logger.info("api_key auth | user={} key_id={}", user.email, key_data.get("api_key_id", "?"))
             return user
 
         payload = decode_token(token, settings.JWT_SECRET, [settings.JWT_ALGORITHM])
@@ -58,4 +60,5 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
         if not user.is_active:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
+        logger.info("jwt auth | user={}", user.email)
         return user
