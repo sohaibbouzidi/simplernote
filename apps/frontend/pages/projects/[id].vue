@@ -20,6 +20,13 @@
             <span class="mr-2 inline-flex items-center justify-center rounded-md border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-xs font-medium text-slate-400">project</span>
             {{ project?.name }}
           </h1>
+          <div class="mt-1 flex items-center gap-2">
+            <span class="font-mono text-xs text-slate-500">{{ projectId }}</span>
+            <button @click="copyProjectId" class="rounded-md border border-slate-800 bg-surface-50 px-2 py-1 text-xs text-slate-400 transition-colors hover:border-slate-700 hover:text-white">
+              <svg v-if="!copied" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              <svg v-else class="h-3.5 w-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            </button>
+          </div>
           <p class="mt-1 text-sm text-slate-400">{{ project?.description || "No description" }}</p>
         </div>
       </div>
@@ -161,204 +168,152 @@
     </div>
 
     <div v-if="activeTab === 'ai-context'" class="space-y-6">
-      <div class="flex items-center gap-6 border-b border-slate-800">
-        <button
-          v-for="st in aiSubTabs"
-          :key="st.key"
-          @click="aiSubTab = st.key"
-          class="relative pb-3 text-sm font-medium transition-colors"
-          :class="aiSubTab === st.key ? 'text-white' : 'text-slate-400 hover:text-slate-200'"
-        >
-          {{ st.label }}
-          <span v-if="aiSubTab === st.key" class="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-400" />
-        </button>
-        <div v-if="aiRateLimit" class="ml-auto flex items-center gap-1.5 text-xs text-slate-500">
-          <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-          {{ aiRateLimit.remaining }}/{{ aiRateLimit.limit }} left
-        </div>
+      <div v-if="aiLoading" class="flex items-center justify-center py-12 text-sm text-slate-400">
+        <svg class="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+        Loading context...
       </div>
 
-      <div v-if="aiSubTab === 'search'">
-        <div class="mb-4 flex gap-3">
-          <input
-            v-model="aiSearchQuery"
-            @keydown.enter="handleAiSearch"
-            placeholder="Search notes and tasks..."
-            class="flex-1 rounded-lg border border-slate-800 bg-surface px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-brand-500"
-          />
-          <button
-            @click="handleAiSearch"
-            :disabled="!aiSearchQuery.trim()"
-            class="rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Search
-          </button>
-        </div>
-
-        <div v-if="aiSearchLoading" class="flex items-center justify-center py-16">
-          <svg class="h-8 w-8 animate-spin text-brand-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-          <span class="ml-3 text-sm text-slate-400">Searching...</span>
-        </div>
-
-        <div v-else-if="aiSearchError" class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          <p>{{ aiSearchError }}</p>
-        </div>
-
-        <template v-else-if="aiSearchResults">
-          <div v-if="aiSearchResults.notes.length > 0" class="mb-6">
-            <h2 class="mb-3 text-sm font-semibold text-slate-300 uppercase tracking-wider">Notes ({{ aiSearchResults.notes.length }})</h2>
-            <div class="space-y-2">
-              <div v-for="note in aiSearchResults.notes" :key="note.id" class="rounded-lg border border-slate-800 bg-surface-50 px-4 py-3 transition-colors hover:border-slate-700">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium text-white">{{ note.title }}</span>
-                  <span class="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-400">{{ note.note_type }}</span>
-                </div>
-                <p class="mt-1 text-sm text-slate-500 line-clamp-1">{{ note.content || note.summary || "No content" }}</p>
-                <div class="mt-1.5 flex items-center gap-3 text-xs text-slate-600">
-                  <span v-if="note.tags?.length" class="flex gap-1">
-                    <span v-for="tag in note.tags.slice(0, 3)" :key="tag" class="text-slate-500">#{{ tag }}</span>
-                    <span v-if="note.tags.length > 3" class="text-slate-600">+{{ note.tags.length - 3 }}</span>
-                  </span>
-                  <span>{{ formatDate(note.created_at) }}</span>
-                </div>
-              </div>
-            </div>
+      <template v-else-if="aiContext && !aiEditing">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Project Context</h2>
+          <div class="flex gap-2">
+            <button @click="aiEditing = true" class="rounded-md border border-slate-800 bg-surface-50 px-3 py-1.5 text-sm text-white hover:bg-slate-700">Edit</button>
+            <button @click="confirmAiDelete" class="rounded-md border border-slate-800 bg-surface-50 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10">Delete</button>
           </div>
-
-          <div v-if="aiSearchResults.tasks.length > 0" class="mb-6">
-            <h2 class="mb-3 text-sm font-semibold text-slate-300 uppercase tracking-wider">Tasks ({{ aiSearchResults.tasks.length }})</h2>
-            <div class="space-y-2">
-              <div v-for="task in aiSearchResults.tasks" :key="task.id" class="rounded-lg border border-slate-800 bg-surface-50 px-4 py-3 transition-colors hover:border-slate-700">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium text-white">{{ task.title }}</span>
-                  <span class="rounded px-1.5 py-0.5 text-xs font-medium" :class="statusBadge(task.status)">{{ task.status }}</span>
-                  <span class="rounded px-1.5 py-0.5 text-xs font-medium" :class="priorityBadge(task.priority)">{{ task.priority }}</span>
-                </div>
-                <p v-if="task.description" class="mt-1 text-sm text-slate-500 line-clamp-1">{{ task.description }}</p>
-                <div class="mt-1.5 text-xs text-slate-600">{{ formatDate(task.created_at) }}</div>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="aiSearchResults.notes.length === 0 && aiSearchResults.tasks.length === 0" class="py-16 text-center">
-            <p class="text-sm text-slate-500">No results found for <span class="font-mono text-slate-400">"{{ aiLastQuery }}"</span></p>
-          </div>
-        </template>
-
-        <div v-else class="py-16 text-center">
-          <svg class="mx-auto mb-3 h-10 w-10 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <p class="text-sm text-slate-500">Search this project's notes and tasks</p>
-          <p class="mt-1 text-xs text-slate-600">Enter a query above to find relevant context for your AI agents</p>
         </div>
-      </div>
-
-      <div v-if="aiSubTab === 'import'">
-        <p class="mb-4 text-sm text-slate-400">Paste JSON below to batch import notes and tasks into this project.</p>
-        <div class="mb-4">
-          <textarea
-            v-model="aiImportJson"
-            @input="aiImportError = ''"
-            rows="12"
-            placeholder='{\n  "notes": [\n    {\n      "title": "My Note",\n      "content": "...",\n      "note_type": "documentation"\n    }\n  ],\n  "tasks": [\n    {\n      "title": "My Task",\n      "status": "todo",\n      "priority": "medium"\n    }\n  ]\n}'
-            class="w-full rounded-lg border border-slate-800 bg-surface px-4 py-3 font-mono text-sm text-white outline-none placeholder:text-slate-700 focus:border-brand-500"
-          ></textarea>
+        <div class="rounded-lg border border-slate-800 bg-surface-50 p-4">
+          <p class="whitespace-pre-wrap text-sm text-slate-300 leading-relaxed">{{ aiContext.content || "No content" }}</p>
         </div>
-        <div class="flex items-center gap-4">
-          <label class="cursor-pointer rounded-lg border border-slate-800 bg-surface-50 px-4 py-2 text-sm text-slate-300 transition-colors hover:border-slate-700 hover:text-white">
-            Upload .json
-            <input type="file" accept=".json" @change="handleAiFileUpload" class="hidden" />
-          </label>
-          <button
-            @click="handleAiImport"
-            :disabled="!aiImportJson.trim() || aiImportLoading"
-            class="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <span v-if="aiImportLoading" class="flex items-center gap-2">
+        <p class="text-xs text-slate-500">Updated {{ formatDate(aiContext.updated_at) }}</p>
+      </template>
+
+      <template v-else>
+        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">{{ aiContext ? 'Edit Context' : 'Create Context' }}</h2>
+        <p class="text-sm text-slate-400">Provide context about this project for AI agents. This is the one and only context document for this project.</p>
+        <textarea
+          v-model="aiFormContent"
+          rows="16"
+          placeholder="Describe this project, its goals, conventions, architecture, and any other context you want AI agents to know..."
+          class="w-full rounded-lg border border-slate-800 bg-surface px-4 py-3 text-sm text-white outline-none placeholder:text-slate-700 focus:border-brand-500"
+        ></textarea>
+        <div v-if="aiError" class="text-sm text-red-400">{{ aiError }}</div>
+        <div class="flex gap-3">
+          <button @click="saveAiContext" :disabled="aiSaving" class="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">
+            <span v-if="aiSaving" class="flex items-center gap-2">
               <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              Importing...
+              Saving...
             </span>
-            <span v-else>Import</span>
+            <span v-else>{{ aiContext ? 'Save' : 'Create' }}</span>
           </button>
-          <span v-if="aiImportError" class="text-sm text-red-400">{{ aiImportError }}</span>
-          <span v-else-if="aiImportSuccess" class="text-sm text-green-400">{{ aiImportSuccess }}</span>
+          <button v-if="aiContext" @click="cancelAiEdit" class="rounded-md border border-slate-800 bg-surface-50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
         </div>
-      </div>
+      </template>
+
+      <Modal v-model="showAiDelete" title="Delete AI Context?">
+        <p class="mb-6 text-sm text-slate-400">Delete the AI context document for this project? This cannot be undone.</p>
+        <div class="flex justify-end gap-3">
+          <button @click="showAiDelete = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
+          <button @click="deleteAiContext" class="rounded-md border border-slate-800 bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Delete</button>
+        </div>
+      </Modal>
     </div>
 
-    <div v-if="activeTab === 'settings'" class="max-w-2xl space-y-8">
-      <section class="rounded-lg border border-slate-800">
-        <div class="border-b border-slate-800 px-5 py-3">
-          <h2 class="text-base font-semibold text-white">Project info</h2>
-        </div>
-        <div class="px-5 py-4 space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-white mb-1">Name</label>
-            <input v-model="settingsForm.name" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none" />
+    <div v-if="activeTab === 'settings'" class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div class="space-y-8 lg:col-span-2">
+        <section class="rounded-lg border border-slate-800">
+          <div class="border-b border-slate-800 px-5 py-3">
+            <h2 class="text-base font-semibold text-white">Project info</h2>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-white mb-1">Description</label>
-            <textarea v-model="settingsForm.description" rows="3" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none" />
-          </div>
-          <div class="flex gap-3">
-            <button @click="saveSettings" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400">Save</button>
-            <button @click="confirmDeleteProject" class="rounded-md border border-slate-800 bg-transparent px-4 py-2 text-sm text-red-400 hover:bg-red-500/10">Delete project</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="rounded-lg border border-slate-800">
-        <div class="border-b border-slate-800 px-5 py-3 flex items-center justify-between">
-          <h2 class="text-base font-semibold text-white">API Keys</h2>
-          <button v-if="keys.length === 0" @click="openCreateKey" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-400">Create key</button>
-          <span v-else class="text-xs text-slate-500">Max 1 key per project</span>
-        </div>
-        <div v-if="keysLoading" class="px-5 py-8 text-center text-sm text-slate-400">
-          <svg class="mx-auto h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-          <span class="ml-2">Loading keys...</span>
-        </div>
-        <div v-else-if="keys.length === 0" class="px-5 py-8 text-center text-sm text-slate-400">
-          No API keys for this project. Create one to enable AI agent access.
-        </div>
-        <div v-else class="divide-y divide-slate-800">
-          <div v-for="key in keys" :key="key.id" class="flex items-center justify-between px-5 py-3">
-            <div class="min-w-0">
-              <p class="font-medium text-white text-sm">{{ key.name }}</p>
-              <p class="text-xs text-slate-400 mt-0.5">Permissions: {{ Object.keys(key.permissions).join(", ") || "none" }}</p>
+          <div class="px-5 py-4 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-white mb-1">Name</label>
+              <input v-model="settingsForm.name" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none" />
             </div>
-            <button @click="confirmDeleteKey(key)" class="shrink-0 rounded-md border border-slate-800 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/10">Revoke</button>
+            <div>
+              <label class="block text-sm font-medium text-white mb-1">Description</label>
+              <textarea v-model="settingsForm.description" rows="3" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none" />
+            </div>
+            <div class="flex gap-3">
+              <button @click="saveSettings" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400">Save</button>
+              <button @click="confirmDeleteProject" class="rounded-md border border-slate-800 bg-transparent px-4 py-2 text-sm text-red-400 hover:bg-red-500/10">Delete project</button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section class="rounded-lg border border-slate-800">
+          <div class="border-b border-slate-800 px-5 py-3 flex items-center justify-between">
+            <h2 class="text-base font-semibold text-white">API Keys</h2>
+            <button v-if="keys.length === 0" @click="openCreateKey" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-400">Create key</button>
+            <span v-else class="text-xs text-slate-500">Max 1 key per project</span>
+          </div>
+          <div v-if="keysLoading" class="px-5 py-8 text-center text-sm text-slate-400">
+            <svg class="mx-auto h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+            <span class="ml-2">Loading keys...</span>
+          </div>
+          <div v-else-if="keys.length === 0" class="px-5 py-8 text-center text-sm text-slate-400">
+            No API keys for this project. Create one to enable AI agent access.
+          </div>
+          <div v-else class="divide-y divide-slate-800">
+            <div v-for="key in keys" :key="key.id" class="flex items-center justify-between px-5 py-3">
+              <div class="min-w-0">
+                <p class="font-medium text-white text-sm">{{ key.name }}</p>
+                <p class="text-xs text-slate-400 mt-0.5">Permissions: {{ Object.keys(key.permissions).join(", ") || "none" }}</p>
+              </div>
+              <button @click="confirmDeleteKey(key)" class="shrink-0 rounded-md border border-slate-800 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/10">Revoke</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-slate-800">
+          <div class="border-b border-slate-800 px-5 py-3">
+            <h2 class="text-base font-semibold text-white">Prompt Setup</h2>
+          </div>
+          <div class="px-5 py-4 space-y-4">
+            <p class="text-sm text-slate-400">Paste your API key below to generate a ready-to-use agent prompt:</p>
+            <div>
+              <label class="block text-sm font-medium text-white mb-1">API Key</label>
+              <input v-model="promptApiKey" placeholder="Paste your API key here..." class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white placeholder-slate-400 font-mono focus:border-brand-500 focus:outline-none" />
+            </div>
+            <CodeBlock :code="agentPrompt" lang="markdown" />
+          </div>
+        </section>
+      </div>
 
       <Modal v-model="showCreateKey" title="Create API Key">
-        <form @submit.prevent="createKey" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-white mb-1">Name</label>
-            <input v-model="keyForm.name" required placeholder="e.g. my-coding-agent" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white placeholder-slate-400 focus:border-brand-500 focus:outline-none" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-white mb-2">Permissions</label>
-            <div class="space-y-2">
-              <label v-for="perm in permissionOptions" :key="perm.key" class="flex items-center gap-3 rounded-md border border-slate-800 bg-surface-50 px-3 py-2">
-                <input type="checkbox" v-model="keyForm.permissions[perm.key]" class="rounded border-slate-700 bg-surface text-brand-500 focus:ring-brand-500" />
-                <span class="text-sm text-white">{{ perm.label }}</span>
-              </label>
+        <template v-if="!newKeyValue">
+          <form @submit.prevent="createKey" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-white mb-1">Name</label>
+              <input v-model="keyForm.name" required placeholder="e.g. my-coding-agent" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white placeholder-slate-400 focus:border-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-white mb-2">Permissions</label>
+              <div class="space-y-2">
+                <label v-for="perm in permissionOptions" :key="perm.key" class="flex items-center gap-3 rounded-md border border-slate-800 bg-surface-50 px-3 py-2">
+                  <input type="checkbox" v-model="keyForm.permissions[perm.key]" class="rounded border-slate-700 bg-surface text-brand-500 focus:ring-brand-500" />
+                  <span class="text-sm text-white">{{ perm.label }}</span>
+                </label>
+              </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" @click="showCreateKey = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
+              <button type="submit" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400">Create</button>
+            </div>
+          </form>
+        </template>
+        <template v-else>
+          <div class="space-y-4">
+            <div class="rounded-md border border-brand-500/30 bg-brand-500/10 p-3">
+              <p class="text-sm font-semibold text-green-400">Key created! Copy it now — it won't be shown again.</p>
+              <div class="mt-2">
+                <CodeBlock :code="newKeyValue" lang="plain" />
+              </div>
+            </div>
+            <div class="flex justify-end pt-2">
+              <button type="button" @click="showCreateKey = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Done</button>
             </div>
           </div>
-          <div v-if="newKeyValue" class="rounded-md border border-brand-500/30 bg-brand-500/10 p-3">
-            <p class="text-sm font-semibold text-green-400">Key created! Copy it now — it won't be shown again.</p>
-            <div class="mt-2">
-              <CodeBlock :code="newKeyValue" lang="plain" />
-            </div>
-          </div>
-          <div v-if="!newKeyValue" class="flex justify-end gap-3 pt-2">
-            <button type="button" @click="showCreateKey = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
-            <button type="submit" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400">Create</button>
-          </div>
-          <div v-else class="flex justify-end pt-2">
-            <button type="button" @click="showCreateKey = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Done</button>
-          </div>
-        </form>
+        </template>
       </Modal>
 
       <Modal v-model="showRevokeKey" title="Revoke API Key?">
@@ -391,6 +346,17 @@ const route = useRoute()
 const router = useRouter()
 const projectId = route.params.id as string
 const toast = useToast()
+const copied = ref(false)
+
+async function copyProjectId() {
+  try {
+    await navigator.clipboard.writeText(projectId)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    toast.error("Failed to copy")
+  }
+}
 
 const project = ref<any | null>(null)
 const loading = ref(true)
@@ -405,6 +371,270 @@ const tabs = [
 ]
 
 const settingsForm = ref({ name: "", description: "" })
+
+const agentPrompt = computed(() => {
+  const apiKey = promptApiKey.value || keys.value[0]?.plain_text_key || "<your-api-key>"
+  return `# External Memory Rule — Simplernote AI API Integration
+
+You must use the external memory API at \`http://localhost:8000\` as the persistent memory, task orchestration, and AI knowledge backend for all long-running workflows, planning, coding sessions, debugging, research, and multi-agent execution.
+
+The API acts as the shared memory layer between sessions, agents, and workflows.
+
+---
+
+# CONFIGURATION REQUIREMENTS
+
+Before any API usage, the following must be defined:
+
+\`\`\`bash id="cfg1"
+SIMPLERNOTE_API_KEY="${apiKey}"
+PROJECT_ID="${projectId}"
+\`\`\`
+
+### Validation Rule
+
+Before executing ANY API operation:
+
+* If \`SIMPLERNOTE_API_KEY\` is missing → request user input
+* If \`PROJECT_ID\` is missing → request user input
+* If either is missing → stop execution immediately
+
+---
+
+# AUTHENTICATION
+
+All requests must include:
+
+\`\`\`http id="auth1"
+Authorization: Bearer ${apiKey}
+Content-Type: application/json
+\`\`\`
+
+Base URL:
+
+\`\`\`text id="base1"
+http://localhost:8000
+\`\`\`
+
+---
+
+# CORE API SPECIFICATION
+
+# NOTES API
+
+## Endpoints
+
+| Method | URL               |
+| ------ | ----------------- |
+| GET    | \`/api/notes/\`     |
+| POST   | \`/api/notes/\`     |
+| GET    | \`/api/notes/{id}\` |
+| PATCH  | \`/api/notes/{id}\` |
+| DELETE | \`/api/notes/{id}\` |
+
+## Example Usage
+
+\`\`\`bash id="notes1"
+curl -H "Authorization: Bearer \$TOKEN" \\
+http://localhost:8000/api/notes/
+\`\`\`
+
+---
+
+## Create Note Example
+
+\`\`\`bash id="notes2"
+curl -X POST "http://localhost:8000/api/notes/" \\
+-H "Authorization: Bearer \$TOKEN" \\
+-H "Content-Type: application/json" \\
+-d '{
+  "project_id": "${projectId}",
+  "title": "Deployment Steps",
+  "content": "1. Build image\\n2. Push registry\\n3. Deploy manifests",
+  "note_type": "documentation",
+  "tags": ["deploy", "k8s"]
+}'
+\`\`\`
+
+---
+
+# TASKS API
+
+## Endpoints
+
+| Method | URL               |
+| ------ | ----------------- |
+| GET    | \`/api/tasks/\`     |
+| POST   | \`/api/tasks/\`     |
+| GET    | \`/api/tasks/{id}\` |
+| PATCH  | \`/api/tasks/{id}\` |
+| DELETE | \`/api/tasks/{id}\` |
+
+## Example Usage
+
+\`\`\`bash id="tasks1"
+curl -H "Authorization: Bearer \$TOKEN" \\
+http://localhost:8000/api/tasks/
+\`\`\`
+
+---
+
+## Create Task Example
+
+\`\`\`bash id="tasks2"
+curl -X POST "http://localhost:8000/api/tasks/" \\
+-H "Authorization: Bearer \$TOKEN" \\
+-H "Content-Type: application/json" \\
+-d '{
+  "project_id": "${projectId}",
+  "title": "Review PR #42",
+  "description": "Check auth middleware changes",
+  "status": "todo",
+  "priority": "high",
+  "assigned_agent": "code-reviewer"
+}'
+\`\`\`
+
+---
+
+# AI CONTEXT API
+
+## Endpoints
+
+| Method | URL                                    |
+| ------ | -------------------------------------- |
+| GET    | \`/api/ai-context/project/{project_id}\` |
+| POST   | \`/api/ai-context/\`                     |
+| PATCH  | \`/api/ai-context/{id}\`                 |
+| DELETE | \`/api/ai-context/{id}\`                 |
+
+---
+
+## Get Project Context
+
+\`\`\`bash id="ctx1"
+curl -H "Authorization: Bearer \$TOKEN" \\
+http://localhost:8000/api/ai-context/project/${projectId}
+\`\`\`
+
+---
+
+## Update Context Example
+
+\`\`\`bash id="ctx2"
+curl -X POST "http://localhost:8000/api/ai-context/" \\
+-H "Authorization: Bearer \$TOKEN" \\
+-H "Content-Type: application/json" \\
+-d '{
+  "project_id": "${projectId}",
+  "current_focus": "system architecture",
+  "state": {
+    "backend": "in_progress",
+    "tasks_sync": "active"
+  }
+}'
+\`\`\`
+
+---
+
+# MEMORY-FIRST EXECUTION RULE
+
+Before any response:
+
+1. Load AI context by project_id
+2. Retrieve all relevant notes
+3. Retrieve all active tasks
+4. Continue from existing state
+
+Never recreate existing knowledge.
+
+---
+
+# AI CONTEXT IMPORT (BOOTSTRAP ONLY)
+
+Use only for initialization or migration.
+
+* NOT for incremental updates
+* MUST include project_id
+* MUST include notes or tasks
+
+---
+
+# NOTE TYPES
+
+* memory
+* decision
+* research
+* issue
+* workflow
+* architecture
+* documentation
+
+---
+
+# TASK STATUSES
+
+* todo
+* planning
+* research
+* coding
+* review
+* testing
+* done
+* blocked
+
+---
+
+# RATE LIMITING
+
+AI Context:
+
+* 30 requests per minute
+
+Use batching and avoid redundant calls.
+
+---
+
+# MULTI-AGENT RULES
+
+All agents must share:
+
+* same API base
+* same API key
+* same project_id
+
+Roles:
+
+* planner → context + strategy
+* researcher → notes creation
+* coder → implementation tracking
+* reviewer → task updates
+* tester → validation
+
+---
+
+# FAILURE HANDLING
+
+If API is unavailable:
+
+1. continue execution locally
+2. queue updates
+3. retry later
+4. sync when recovered
+
+Never lose data or progress.
+
+---
+
+# OUTPUT RULES
+
+* concise
+* structured
+* memory-driven execution
+* reuse existing context
+* avoid duplication
+* enforce project continuity`
+})
 
 const taskStatusOptions = [
   { value: "backlog", label: "Backlog" },
@@ -556,21 +786,31 @@ const showRevokeKey = ref(false)
 const showDeleteProject = ref(false)
 const deletingKey = ref<any | null>(null)
 const newKeyValue = ref<string | null>(null)
-const keyForm = ref({ name: "", permissions: { read_notes: false, write_notes: false } })
+const keyForm = ref({ name: "", permissions: { read_notes: false, write_notes: false, read_tasks: false, write_tasks: false, read_ai_context: false, write_ai_context: false } })
+const promptApiKey = ref("")
 
 const permissionOptions = [
-  { key: "read_notes", label: "Read notes & tasks" },
-  { key: "write_notes", label: "Create & edit notes & tasks" },
+  { key: "read_notes", label: "Read notes" },
+  { key: "write_notes", label: "Create & edit notes" },
+  { key: "read_tasks", label: "Read tasks" },
+  { key: "write_tasks", label: "Create & edit tasks" },
+  { key: "read_ai_context", label: "Read AI context" },
+  { key: "write_ai_context", label: "Create & edit AI context" },
 ]
 
 async function fetchKeys() {
   keysLoading.value = true
-  try { keys.value = (await api.get(`/api-keys/project/${projectId}`)).data } catch { keys.value = [] }
+  try {
+    keys.value = (await api.get(`/api-keys/project/${projectId}`)).data
+    if (keys.value[0]?.plain_text_key && !promptApiKey.value) {
+      promptApiKey.value = keys.value[0].plain_text_key
+    }
+  } catch { keys.value = [] }
   finally { keysLoading.value = false }
 }
 
 function openCreateKey() {
-  keyForm.value = { name: "", permissions: { read_notes: false, write_notes: false } }
+  keyForm.value = { name: "", permissions: { read_notes: false, write_notes: false, read_tasks: false, write_tasks: false, read_ai_context: false, write_ai_context: false } }
   newKeyValue.value = null
   showCreateKey.value = true
 }
@@ -593,103 +833,68 @@ async function createKey() {
   } catch (e: any) { toast.error(e?.response?.data?.detail || "Error creating key") }
 }
 
-const aiSubTabs = [
-  { key: "search", label: "Search" },
-  { key: "import", label: "Import" },
-]
-const aiSubTab = ref("search")
-const aiSearchQuery = ref("")
-const aiLastQuery = ref("")
-const aiSearchLoading = ref(false)
-const aiSearchError = ref("")
-const aiSearchResults = ref<any | null>(null)
-const aiImportJson = ref("")
-const aiImportLoading = ref(false)
-const aiImportError = ref("")
-const aiImportSuccess = ref("")
-const aiRateLimit = ref<{ limit: number; remaining: number } | null>(null)
+const aiContext = ref<any | null>(null)
+const aiLoading = ref(false)
+const aiEditing = ref(false)
+const aiSaving = ref(false)
+const aiError = ref("")
+const aiFormContent = ref("")
+const showAiDelete = ref(false)
 
-async function handleAiSearch() {
-  const q = aiSearchQuery.value.trim()
-  if (!q) return
-  aiLastQuery.value = q
-  aiSearchLoading.value = true
-  aiSearchError.value = ""
-  aiSearchResults.value = null
-  aiRateLimit.value = null
+async function fetchAiContext() {
+  aiLoading.value = true
   try {
-    const res = await api.get(`/ai-context/search?query=${encodeURIComponent(q)}&project_id=${projectId}`)
-    aiSearchResults.value = res.data
-    const limit = parseInt(res.headers["x-ratelimit-remaining"])
-    if (!isNaN(limit)) {
-      aiRateLimit.value = {
-        limit: parseInt(res.headers["x-ratelimit-limit"]) || 30,
-        remaining: limit,
-      }
-    }
-  } catch (e: any) {
-    aiSearchError.value = e?.response?.data?.detail || "Search failed"
-  } finally {
-    aiSearchLoading.value = false
-  }
-}
-
-function handleAiFileUpload(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => {
-    aiImportJson.value = reader.result as string
-    aiImportError.value = ""
-  }
-  reader.readAsText(file)
-}
-
-async function handleAiImport() {
-  let payload: any
-  try {
-    payload = JSON.parse(aiImportJson.value)
+    const res = await api.get(`/ai-context/project/${projectId}`)
+    aiContext.value = res.data
+    aiFormContent.value = res.data.content || ""
   } catch {
-    aiImportError.value = "Invalid JSON"
-    return
-  }
-  aiImportLoading.value = true
-  aiImportError.value = ""
-  aiImportSuccess.value = ""
-  try {
-    const res = await api.post("/ai-context/import", { ...payload, project_id: projectId })
-    const notes = res.data.notes || 0
-    const tasks = res.data.tasks || 0
-    aiImportSuccess.value = `Imported ${notes} note${notes !== 1 ? "s" : ""} and ${tasks} task${tasks !== 1 ? "s" : ""}`
-    aiImportJson.value = ""
-  } catch (e: any) {
-    aiImportError.value = e?.response?.data?.detail || "Import failed"
+    aiContext.value = null
+    aiFormContent.value = ""
   } finally {
-    aiImportLoading.value = false
+    aiLoading.value = false
   }
 }
 
-function statusBadge(status: string) {
-  const map: Record<string, string> = {
-    backlog: "bg-slate-400/10 text-slate-400",
-    todo: "bg-slate-400/10 text-slate-400",
-    "in-progress": "bg-brand-400/10 text-brand-400",
-    review: "bg-amber-400/10 text-amber-400",
-    blocked: "bg-red-400/10 text-red-400",
-    done: "bg-green-400/10 text-green-400",
-    cancelled: "bg-slate-400/10 text-slate-400",
-    deferred: "bg-slate-400/10 text-slate-400",
+async function saveAiContext() {
+  aiError.value = ""
+  aiSaving.value = true
+  try {
+    if (aiContext.value) {
+      const res = await api.patch(`/ai-context/${aiContext.value.id}`, { content: aiFormContent.value })
+      aiContext.value = res.data
+      toast.success("Context saved")
+    } else {
+      const res = await api.post("/ai-context", { project_id: projectId, content: aiFormContent.value })
+      aiContext.value = res.data
+      toast.success("Context created")
+    }
+    aiEditing.value = false
+  } catch (e: any) {
+    aiError.value = e?.response?.data?.detail || "Failed to save"
+  } finally {
+    aiSaving.value = false
   }
-  return map[status] || "bg-slate-400/10 text-slate-400"
 }
 
-function priorityBadge(priority: string) {
-  const map: Record<string, string> = {
-    low: "bg-slate-400/10 text-slate-400",
-    medium: "bg-amber-400/10 text-amber-400",
-    high: "bg-red-400/10 text-red-400",
+function cancelAiEdit() {
+  aiEditing.value = false
+  aiFormContent.value = aiContext.value?.content || ""
+  aiError.value = ""
+}
+
+function confirmAiDelete() { showAiDelete.value = true }
+
+async function deleteAiContext() {
+  if (!aiContext.value) return
+  try {
+    await api.delete(`/ai-context/${aiContext.value.id}`)
+    aiContext.value = null
+    aiFormContent.value = ""
+    showAiDelete.value = false
+    toast.success("AI context deleted")
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || "Failed to delete")
   }
-  return map[priority] || "bg-slate-400/10 text-slate-400"
 }
 
 function formatDate(d: string) {
@@ -708,5 +913,6 @@ onMounted(() => {
   fetchNotes()
   fetchTasks()
   fetchKeys()
+  fetchAiContext()
 })
 </script>

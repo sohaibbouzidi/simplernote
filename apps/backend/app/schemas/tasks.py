@@ -9,8 +9,8 @@ class TaskBaseSchema(BaseModel):
     parent_task_id: Optional[UUID] = None
     title: str
     description: Optional[str] = None
-    status: str = Field(default="todo", pattern="^(todo|planning|research|coding|review|testing|done|blocked)$")
-    priority: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
+    status: str = Field(default="todo", pattern="^(backlog|todo|in-progress|review|blocked|done|cancelled|deferred)$")
+    priority: str = Field(default="medium", pattern="^(low|medium|high)$")
     assigned_agent: Optional[str] = None
     meta: Dict[str, object] = Field(default_factory=dict)
 

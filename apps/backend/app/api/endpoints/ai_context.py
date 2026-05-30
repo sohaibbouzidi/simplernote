@@ -1,116 +1,67 @@
-from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 
 from app.db.session import get_db
-from app.api.deps import PermissionChecker
 from app.services.auth import AuthService
-from app.schemas.notes import NoteSchema
-from app.schemas.tasks import TaskSchema
-from app.models.note import Note
-from app.models.task import Task
+from app.services.ai_contexts import AiContextService
+from app.api.deps import PermissionChecker
+from app.schemas.ai_context import AiContextCreateSchema, AiContextUpdateSchema, AiContextSchema
+from app.models.user import User
+from app.models.project import Project
+from app.models.ai_context import AiContext
 
 from app.core.rate_limit import rate_limit
 
 router = APIRouter(dependencies=[Depends(rate_limit(30, 60))])
 
 
-def _serialize_notes(notes: List[Note]) -> List[dict]:
-    return [
-        {
-            "id": str(n.id),
-            "project_id": str(n.project_id),
-            "title": n.title,
-            "content": n.content,
-            "summary": n.summary,
-            "note_type": n.note_type,
-            "tags": n.tags or [],
-            "meta": n.meta or {},
-            "created_by": str(n.created_by),
-            "created_at": n.created_at.isoformat() if n.created_at else None,
-            "updated_at": n.updated_at.isoformat() if n.updated_at else None,
-        }
-        for n in notes
-    ]
-
-
-def _serialize_tasks(tasks: List[Task]) -> List[dict]:
-    return [
-        {
-            "id": str(t.id),
-            "project_id": str(t.project_id),
-            "parent_task_id": str(t.parent_task_id) if t.parent_task_id else None,
-            "title": t.title,
-            "description": t.description,
-            "status": t.status,
-            "priority": t.priority,
-            "assigned_agent": t.assigned_agent,
-            "meta": t.meta or {},
-            "created_by": str(t.created_by),
-            "created_at": t.created_at.isoformat() if t.created_at else None,
-        }
-        for t in tasks
-    ]
-
-
-@router.get("/search", dependencies=[Depends(PermissionChecker(["read_notes"]))])
-def search_knowledge_base(
-    query: str, 
-    db: Session = Depends(get_db), 
-    current_user=Depends(AuthService.get_current_user)
-):
-    """
-    Search endpoint optimized for AI Agents to retrieve relevant context.
-    Searches both notes and tasks for the given query.
-    """
-    user_id = current_user.id
-    
-    # Simple keyword search - can be upgraded to vector search later
-    notes = db.query(Note).filter(
-        Note.created_by == user_id,
-        or_(
-            Note.title.ilike(f"%{query}%"),
-            Note.content.ilike(f"%{query}%")
-        )
-    ).limit(10).all()
-
-    tasks = db.query(Task).filter(
-        Task.created_by == user_id,
-        or_(
-            Task.title.ilike(f"%{query}%"),
-            Task.description.ilike(f"%{query}%")
-        )
-    ).limit(10).all()
-
-    return {"notes": _serialize_notes(notes), "tasks": _serialize_tasks(tasks)}
-
-@router.post("/import", status_code=status.HTTP_201_CREATED, dependencies=[Depends(PermissionChecker(["write_notes"]))])
-def import_knowledge(
-    data: dict, # Expecting {"notes": [...], "tasks": [...]}
+@router.get("/project/{project_id}", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["read_ai_context"]))])
+def get_ai_context(
+    project_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(AuthService.get_current_user)
+    current_user: User = Depends(AuthService.get_current_user),
 ):
-    """
-    Import batch notes and tasks into the knowledge base.
-    """
-    user_id = current_user.id
-    count = {"notes": 0, "tasks": 0}
-    
-    from app.services.notes import NoteService
-    from app.services.tasks import TaskService
-    from app.schemas.notes import NoteCreateSchema
-    from app.schemas.tasks import TaskCreateSchema
-    
-    for note_data in data.get("notes", []):
-        note_in = NoteCreateSchema(**note_data)
-        NoteService.create_note(db, user_id, note_in)
-        count["notes"] += 1
-        
-    for task_data in data.get("tasks", []):
-        task_in = TaskCreateSchema(**task_data)
-        TaskService.create_task(db, user_id, task_in)
-        count["tasks"] += 1
-        
-    return {"message": "Import successful", "imported": count}
+    ctx = AiContextService.get_by_project(db, project_id)
+    if not ctx:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No AI context for this project")
+    return ctx
+
+
+@router.post("", response_model=AiContextSchema, status_code=status.HTTP_201_CREATED, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def create_ai_context(
+    data: AiContextCreateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    existing = AiContextService.get_by_project(db, data.project_id)
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="AI context already exists for this project")
+    project = db.query(Project).filter(Project.id == data.project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return AiContextService.create(db, str(current_user.id), data)
+
+
+@router.patch("/{context_id}", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def update_ai_context(
+    context_id: str,
+    data: AiContextUpdateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    ctx = db.query(AiContext).filter(AiContext.id == context_id).first()
+    if not ctx:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="AI context not found")
+    return AiContextService.update(db, ctx, data)
+
+
+@router.delete("/{context_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def delete_ai_context(
+    context_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    ctx = db.query(AiContext).filter(AiContext.id == context_id).first()
+    if not ctx:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="AI context not found")
+    AiContextService.delete(db, ctx)

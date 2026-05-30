@@ -5,3 +5,4 @@ from app.models.note import Note
 from app.models.task import Task
 from app.models.api_key import APIKey
 from app.models.activity_log import ActivityLog
+from app.models.ai_context import AiContext

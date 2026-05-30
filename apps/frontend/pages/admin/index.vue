@@ -19,6 +19,7 @@
       <table class="w-full text-left text-sm">
         <thead class="bg-surface-50 text-slate-400">
           <tr>
+            <th class="px-5 py-3 font-medium">Name</th>
             <th class="px-5 py-3 font-medium">Email</th>
             <th class="px-5 py-3 font-medium">Role</th>
             <th class="px-5 py-3 font-medium">Active</th>
@@ -28,7 +29,8 @@
         </thead>
         <tbody class="divide-y divide-slate-800">
           <tr v-for="user in users" :key="user.id" class="hover:bg-surface-50 transition-colors">
-            <td class="px-5 py-3 text-white">{{ user.email }}</td>
+            <td class="px-5 py-3 text-white">{{ user.first_name || user.last_name ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "—" }}</td>
+            <td class="px-5 py-3 text-slate-400">{{ user.email }}</td>
             <td class="px-5 py-3">
               <span :class="user.role === 'admin' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'" class="rounded-full px-2.5 py-0.5 text-xs font-medium">{{ user.role }}</span>
             </td>
