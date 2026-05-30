@@ -1,153 +1,108 @@
-# AI Memory & Task Management Platform
+# Simplernote — AI Memory & Task Management Platform
 
 A fullstack foundation for AI agent memory, task orchestration, and autonomous workflow management.
 
-This repository contains a modular Nuxt 3 frontend, FastAPI backend, PostgreSQL data layer, Redis support, and Docker Compose orchestration.
-
-## Architecture
-
-- **Frontend:** Nuxt 3, TypeScript, Pinia, TailwindCSS
-- **Backend:** FastAPI, SQLAlchemy, Pydantic, Alembic, JWT Authentication
-- **Database:** PostgreSQL 16
-- **Infra:** Docker, Docker Compose, Redis
+**Frontend:** Nuxt 3, TypeScript, Pinia, TailwindCSS  
+**Backend:** FastAPI, SQLAlchemy, Pydantic, Alembic, JWT  
+**Database:** PostgreSQL 16  
+**Infra:** Docker Compose, Redis, MinIO (S3-compatible storage)
 
 ## Project Layout
 
 ```text
 apps/
-├── frontend/
-├── backend/
+├── frontend/          # Nuxt 3 SPA
+├── backend/           # FastAPI application
+│   ├── app/
+│   │   ├── api/       # Endpoints (auth, users, projects, notes, tasks, admin, ai-context)
+│   │   ├── core/      # Config, rate limiting
+│   │   ├── models/    # SQLAlchemy models
+│   │   ├── schemas/   # Pydantic schemas
+│   │   ├── services/  # Business logic (auth, email, users, api_keys)
+│   │   ├── utils/     # Security, storage (S3/MinIO)
+│   │   └── db/        # Session management
+│   ├── alembic/       # Migrations
+│   └── tests/          # Pytest suite (67+ tests)
 ├── docker/
-├── docs/
 └── scripts/
 ```
 
-## Run Locally
-
-1. Copy environment templates:
+## Quick Start
 
 ```bash
 cp apps/backend/.env.example apps/backend/.env
 cp docker/.env.example docker/.env
-```
-
-2. Start services:
-
-```bash
 docker compose up --build
 ```
-
-3. Access the app:
 
 - Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:8000`
 - Health check: `http://localhost:8000/health`
 
-## Backend API
+## API Endpoints
 
 ### Auth
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/refresh`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register (sends confirmation email) |
+| POST | `/api/auth/confirm-email` | Confirm email via JWT token |
+| POST | `/api/auth/login` | Login (returns access + refresh tokens) |
+| POST | `/api/auth/refresh` | Refresh access token |
+| GET | `/api/auth/me` | Current user profile |
+| PATCH | `/api/auth/password` | Change password |
+| POST | `/api/auth/forgot-password` | Request password reset email |
+| POST | `/api/auth/reset-password` | Reset password via JWT token |
 
-### Projects
-- `GET /api/projects`
-- `POST /api/projects`
-- `GET /api/projects/{id}`
-- `PATCH /api/projects/{id}`
-- `DELETE /api/projects/{id}`
+### Projects, Notes, Tasks, API Keys, Activity Logs
+Standard CRUD — see `AGENTS.md` for full details.
 
-### Notes
-- `GET /api/notes`
-- `POST /api/notes`
-- `GET /api/notes/{id}`
-- `PATCH /api/notes/{id}`
-- `DELETE /api/notes/{id}`
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/users` | List all users |
+| PATCH | `/api/admin/users/{id}/role` | Promote/demote user |
+| DELETE | `/api/admin/users/{id}` | Delete user |
 
-### Tasks
-- `GET /api/tasks`
-- `POST /api/tasks`
-- `GET /api/tasks/{id}`
-- `PATCH /api/tasks/{id}`
-- `DELETE /api/tasks/{id}`
-
-### API Keys
-- `GET /api/api-keys`
-- `POST /api/api-keys`
-- `DELETE /api/api-keys/{id}`
-
-### Activity Logs
-- `GET /api/activity-logs`
-
-## API Key Authentication
-
-External agents can authenticate using bearer API keys:
-
-```http
-Authorization: Bearer sk_<key-id>.<secret>
-```
+### AI Context
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/ai-context/search?query=...` | Search notes & tasks |
+| POST | `/api/ai-context/import` | Batch import notes & tasks |
 
 ## Features
 
-- JWT authentication with refresh tokens
-- Project, note, task, and activity log management
-- API key creation and permission support
-- Modular repository/service architecture
-- Dockerized backend/frontend/PostgreSQL/Redis stack
-- Future-ready design for AI agents, pgvector, and RAG
+- JWT auth with access/refresh tokens and API key auth
+- Projects, notes (rich text, types, tags), tasks (kanban lanes, priorities, agent assignment)
+- **Email system** — account confirmation, password reset via Gmail SMTP
+- **Admin panel** — user management, role control, email/activity visibility
+- **Profile management** — avatar upload to S3 (MinIO), `last_login_at` / `profile_updated_at` tracking
+- **AI Context** — per-project knowledge document for AI agents
+- **Rate limiting** — per-endpoint (5–30 req/min configurable)
+- **Activity logging** — audit trail for all mutations
+- Dockerized stack with PostgreSQL, Redis, MinIO
 
-## Notes
+## Email Configuration (Optional)
 
-- UUID primary keys and UTC timestamps are used throughout the backend.
-- Notes support markdown content, tags, types, and metadata.
-- Tasks support subtasks, hierarchies, statuses, and priorities.
-- API keys are hashed and shown only once during creation.
+Set these in `apps/backend/.env` to enable emails (no-op when unset):
 
-## Future Improvements
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your@gmail.com
+SMTP_PASSWORD=<gmail-app-password>
+EMAIL_FROM=your@gmail.com
+EMAIL_FROM_NAME=Simplernote
+BASE_URL=http://localhost:3000
+```
 
-- pgvector embeddings and semantic search
-- LangGraph / AI orchestration integration
-- Advanced kanban drag-and-drop
-- Memory retrieval and RAG pipelines
+Requires a Gmail App Password (https://myaccount.google.com/apppasswords).
 
-* embeddings
-* semantic search
-* AI memory retrieval
+## Tests
 
-## Phase 3
+```bash
+docker compose run --rm backend pytest
+```
 
-* LangGraph orchestration
-* autonomous workflows
-* multi-agent execution
-* RAG pipelines
-* knowledge graphs
+## License
 
----
-
-# Architecture Goals
-
-* Modular
-* Scalable
-* AI-agent ready
-* API-first
-* Future-proof
-* Production-ready
-
----
-
-# Future Vision
-
-This platform is intended to become a complete AI operating memory layer capable of:
-
-* autonomous planning
-* persistent memory
-* task orchestration
-* contextual retrieval
-* multi-agent collaboration
-* long-running workflows
-
----
-
-# License
-
-MIT License
+MIT
