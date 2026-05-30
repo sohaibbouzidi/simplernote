@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from typing import List, Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -8,11 +13,113 @@ from app.api.deps import PermissionChecker
 from app.schemas.ai_context import AiContextCreateSchema, AiContextUpdateSchema, AiContextSchema
 from app.models.user import User
 from app.models.project import Project
+from app.models.note import Note
+from app.models.task import Task
 from app.models.ai_context import AiContext
 
 from app.core.rate_limit import rate_limit
 
 router = APIRouter(dependencies=[Depends(rate_limit(30, 60))])
+
+
+class ImportSchema(BaseModel):
+    project_id: str
+
+
+class SearchResultItem(BaseModel):
+    id: str
+    type: str = "note"  # "note" or "task"
+    project_id: str
+    title: str
+    content: Optional[str] = None
+    note_type: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+@router.post("/import", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def import_context(
+    data: ImportSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    project = db.query(Project).filter(Project.id == data.project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    user_id = current_user.id
+    notes = db.query(Note).filter(Note.project_id == data.project_id).all()
+    tasks = db.query(Task).filter(Task.project_id == data.project_id).all()
+
+    lines = [f"# AI Context for Project: {project.name}"]
+    if notes:
+        lines.append(f"## Notes ({len(notes)})")
+        for n in notes:
+            lines.append(f"- [{n.note_type}] {n.title}")
+            if n.summary:
+                lines.append(f"  Summary: {n.summary}")
+            if n.content:
+                lines.append(f"  Content: {n.content[:500]}")
+        lines.append("")
+
+    if tasks:
+        lines.append(f"## Tasks ({len(tasks)})")
+        for t in tasks:
+            lines.append(f"- [{t.status}/{t.priority}] {t.title}")
+            if t.description:
+                lines.append(f"  Description: {t.description}")
+        lines.append("")
+
+    content = "\n".join(lines)
+
+    existing = AiContextService.get_by_project(db, data.project_id)
+    if existing:
+        existing.content = content
+        db.commit()
+        db.refresh(existing)
+        return existing
+    return AiContextService.create(db, user_id, AiContextCreateSchema(project_id=UUID(data.project_id), content=content))
+
+
+@router.get("/search", response_model=List[SearchResultItem])
+def search_context(
+    query: str = Query(..., min_length=1),
+    project_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    user_id = current_user.id
+    results = []
+
+    note_q = db.query(Note).filter(
+        Note.created_by == user_id,
+        Note.title.ilike(f"%{query}%") | Note.content.ilike(f"%{query}%") | Note.summary.ilike(f"%{query}%"),
+    )
+    if project_id:
+        note_q = note_q.filter(Note.project_id == project_id)
+    for n in note_q.all():
+        results.append(SearchResultItem(
+            id=str(n.id), type="note", project_id=str(n.project_id),
+            title=n.title, content=n.content, note_type=n.note_type,
+            created_at=n.created_at, updated_at=n.updated_at,
+        ))
+
+    task_q = db.query(Task).filter(
+        Task.created_by == user_id,
+        Task.title.ilike(f"%{query}%") | Task.description.ilike(f"%{query}%"),
+    )
+    if project_id:
+        task_q = task_q.filter(Task.project_id == project_id)
+    for t in task_q.all():
+        results.append(SearchResultItem(
+            id=str(t.id), type="task", project_id=str(t.project_id),
+            title=t.title, content=t.description, status=t.status, priority=t.priority,
+            created_at=t.created_at,
+        ))
+
+    return results
 
 
 @router.get("/project/{project_id}", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["read_ai_context"]))])
