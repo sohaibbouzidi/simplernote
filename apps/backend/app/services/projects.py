@@ -32,16 +32,15 @@ def _serialize_project(p):
 
 class ProjectService:
     @staticmethod
-    def list_projects(db: Session, user_id: str):
+    def list_projects(db: Session, user_id: str, with_deleted=False):
         cache_key = _project_cache_key(user_id)
         r = get_redis()
-        if r:
+        if r and not with_deleted:
             cached = r.get(cache_key)
             if cached:
                 return json.loads(cached)
-
-        projects = ProjectRepository.list_by_user(db, user_id)
-        if r:
+        projects = ProjectRepository.list_by_user(db, user_id, with_deleted=with_deleted)
+        if r and not with_deleted:
             r.setex(cache_key, CACHE_TTL, json.dumps([_serialize_project(p) for p in projects], default=str))
         return projects
 
@@ -52,16 +51,15 @@ class ProjectService:
         return project
 
     @staticmethod
-    def get_project(db: Session, project_id: str, user_id: str):
+    def get_project(db: Session, project_id: str, user_id: str, with_deleted=False):
         cache_key = _project_cache_key(user_id, project_id=project_id)
         r = get_redis()
-        if r:
+        if r and not with_deleted:
             cached = r.get(cache_key)
             if cached:
                 return json.loads(cached)
-
-        project = ProjectRepository.get(db, project_id, user_id)
-        if r and project:
+        project = ProjectRepository.get(db, project_id, user_id, with_deleted=with_deleted)
+        if r and project and not with_deleted:
             r.setex(cache_key, CACHE_TTL, json.dumps(_serialize_project(project), default=str))
         return project
 
@@ -82,3 +80,12 @@ class ProjectService:
         ProjectRepository.delete(db, project)
         _invalidate_project_cache(user_id)
         return True
+
+    @staticmethod
+    def restore_project(db: Session, project_id: str, user_id: str):
+        project = ProjectRepository.get(db, project_id, user_id, with_deleted=True)
+        if not project or project.deleted_at is None:
+            return None
+        project = ProjectRepository.restore(db, project)
+        _invalidate_project_cache(user_id)
+        return project

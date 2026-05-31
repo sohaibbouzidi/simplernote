@@ -15,6 +15,7 @@ class Project(Base):
     description = Column(Text, nullable=True)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True, default=None)
 
     notes = relationship("Note", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")

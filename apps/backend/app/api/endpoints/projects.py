@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -12,8 +12,8 @@ router = APIRouter()
 
 
 @router.get("/", response_model=List[ProjectSchema])
-def get_projects(db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
-    return ProjectService.list_projects(db, current_user.id)
+def get_projects(with_deleted: bool = Query(False), db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
+    return ProjectService.list_projects(db, current_user.id, with_deleted=with_deleted)
 
 
 @router.post("/", response_model=ProjectSchema, status_code=status.HTTP_201_CREATED)
@@ -24,12 +24,19 @@ def create_project(project_in: ProjectCreateSchema, db: Session = Depends(get_db
 
 
 @router.get("/{project_id}", response_model=ProjectSchema)
-def get_project(project_id: str, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
-    project = ProjectService.get_project(db, project_id, current_user.id)
+def get_project(project_id: str, with_deleted: bool = Query(False), db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
+    project = ProjectService.get_project(db, project_id, current_user.id, with_deleted=with_deleted)
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     return project
 
+@router.patch("/{project_id}/restore", response_model=ProjectSchema)
+def restore_project(project_id: str, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):
+    project = ProjectService.restore_project(db, project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found or not deleted")
+    ActivityLogService.record(db, user_id=str(current_user.id), action="restore", entity_type="project", entity_id=project_id, project_id=project_id, payload={"name": project.name}, auth_method=getattr(current_user, '_auth_method', 'user'))
+    return project
 
 @router.patch("/{project_id}", response_model=ProjectSchema)
 def update_project(project_id: str, project_in: ProjectUpdateSchema, db: Session = Depends(get_db), current_user=Depends(AuthService.get_current_user)):

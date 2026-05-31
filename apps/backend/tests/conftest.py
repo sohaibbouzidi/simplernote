@@ -188,9 +188,8 @@ def project_id(user_project):
 
 
 @pytest.fixture
-def note_data(project_id):
+def note_data():
     return {
-        "project_id": project_id,
         "title": "Test Note",
         "content": "<p>Hello world</p>",
         "note_type": "documentation",
@@ -198,9 +197,8 @@ def note_data(project_id):
 
 
 @pytest.fixture
-def task_data(project_id):
+def task_data():
     return {
-        "project_id": project_id,
         "title": "Test Task",
         "description": "A task for testing",
         "status": "todo",

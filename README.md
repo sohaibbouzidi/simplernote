@@ -14,7 +14,7 @@ apps/
 ├── frontend/          # Nuxt 3 SPA
 ├── backend/           # FastAPI application
 │   ├── app/
-│   │   ├── api/       # Endpoints (auth, users, projects, notes, tasks, admin, ai-context)
+│   │   ├── api/       # Endpoints (auth, users, projects, notes, tasks, admin, ai-context, ai-agent)
 │   │   ├── core/      # Config, rate limiting
 │   │   ├── models/    # SQLAlchemy models
 │   │   ├── schemas/   # Pydantic schemas
@@ -53,21 +53,19 @@ docker compose up --build
 | POST | `/api/auth/forgot-password` | Request password reset email |
 | POST | `/api/auth/reset-password` | Reset password via JWT token |
 
-### Projects, Notes, Tasks, API Keys, Activity Logs
-Standard CRUD — see `AGENTS.md` for full details.
+### AI Agent API — full CRUD (X-API-KEY header)
+All endpoints scoped under `/api/ai-agent/` and authenticated via the `X-API-KEY` header.
 
-### Admin
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/admin/users` | List all users |
-| PATCH | `/api/admin/users/{id}/role` | Promote/demote user |
-| DELETE | `/api/admin/users/{id}` | Delete user |
+| GET | `/api/ai-agent/projects` | List projects |
+| GET/POST/PATCH/DELETE | `/api/ai-agent/projects/{id}/notes` | Notes CRUD |
+| GET/POST/PATCH/DELETE | `/api/ai-agent/projects/{id}/tasks` | Tasks CRUD |
+| GET/POST/PUT/DELETE | `/api/ai-agent/projects/{id}/context` | AI context CRUD |
+| POST | `/api/ai-agent/projects/{id}/context/import` | Auto-import notes+tasks into context |
+| GET | `/api/ai-agent/search?query=...` | Search notes & tasks |
 
-### AI Context
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/ai-context/search?query=...` | Search notes & tasks |
-| POST | `/api/ai-context/import` | Batch import notes & tasks |
+See `AGENTS.md` for the full endpoint reference.
 
 ## Features
 

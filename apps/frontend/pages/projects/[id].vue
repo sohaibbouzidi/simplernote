@@ -246,7 +246,6 @@
             </div>
             <div class="flex gap-3">
               <button @click="saveSettings" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400">Save</button>
-              <button @click="confirmDeleteProject" class="rounded-md border border-slate-800 bg-transparent px-4 py-2 text-sm text-red-400 hover:bg-red-500/10">Delete project</button>
             </div>
           </div>
         </section>
@@ -277,18 +276,55 @@
 
         <section class="rounded-lg border border-slate-800">
           <div class="border-b border-slate-800 px-5 py-3">
-            <h2 class="text-base font-semibold text-white">Prompt Setup</h2>
+            <h2 class="text-base font-semibold text-white">Agent Prompt</h2>
           </div>
           <div class="px-5 py-4 space-y-4">
-            <p class="text-sm text-slate-400">Paste your API key below to generate a ready-to-use agent prompt:</p>
+            <p class="text-sm text-slate-400">Paste your API key to generate a ready-to-use prompt. The agent uses <code class="text-brand-400">X-API-KEY</code> header (not Bearer) and read-only <code class="text-brand-400">/ai-agent/*</code> endpoints.</p>
             <div>
               <label class="block text-sm font-medium text-white mb-1">API Key</label>
               <input v-model="promptApiKey" placeholder="Paste your API key here..." class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white placeholder-slate-400 font-mono focus:border-brand-500 focus:outline-none" />
             </div>
-            <CodeBlock :code="agentPrompt" lang="markdown" />
+            <div class="max-h-80 overflow-y-auto">
+              <CodeBlock :code="agentPrompt" lang="markdown" />
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-slate-800">
+          <div class="border-b border-slate-800 px-5 py-3">
+            <h2 class="text-base font-semibold text-white">Export & Import</h2>
+          </div>
+          <div class="px-5 py-4 space-y-4">
+            <div>
+              <p class="text-sm text-slate-400 mb-3">Download all notes and tasks in this project as JSON or Markdown.</p>
+              <div class="flex flex-wrap gap-3">
+                <button @click="exportJson" :disabled="exporting" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400 disabled:opacity-50">
+                  <svg v-if="exporting" class="mr-1.5 inline h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.385 0 0 5.373 0 12h4z" /></svg>
+                  Export JSON
+                </button>
+                <button @click="exportMarkdown" :disabled="exporting" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">Export Markdown</button>
+              </div>
+            </div>
+            <div class="border-t border-slate-800 pt-4">
+              <p class="text-sm text-slate-400 mb-3">Ask your AI agent to import data using <code class="text-brand-400">POST /api/ai-agent/projects/{{ projectId }}/notes</code>, <code class="text-brand-400">POST /api/ai-agent/projects/{{ projectId }}/tasks</code>, or <code class="text-brand-400">POST /api/ai-agent/projects/{{ projectId }}/context/import</code>.</p>
+              <button @click="copyImportPrompt" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+                {{ importCopied ? 'Copied!' : 'Copy import prompt' }}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-red-500/20">
+          <div class="border-b border-red-500/20 px-5 py-3">
+            <h2 class="text-base font-semibold text-red-400">Delete Project</h2>
+          </div>
+          <div class="px-5 py-4">
+            <p class="text-sm text-slate-400 mb-4">Permanently delete this project and all its notes, tasks, and API keys. This action cannot be undone.</p>
+            <button @click="confirmDeleteProject" class="rounded-md border border-red-500/30 bg-transparent px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10">Delete project</button>
           </div>
         </section>
       </div>
+    </div>
 
       <Modal v-model="showCreateKey" title="Create API Key">
         <template v-if="!newKeyValue">
@@ -342,13 +378,12 @@
           <button @click="deleteProject" class="rounded-md border border-slate-800 bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Delete</button>
         </div>
       </Modal>
-    </div>
   </template>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue"
-import { useRoute, useRouter } from "#app"
+import { ref, computed, onMounted, watch } from "vue"
+import { useRoute, useRouter, useRuntimeConfig } from "#app"
 import { getApiInstance } from "@/services/api"
 import { useToast } from "@/composables/useToast"
 
@@ -372,7 +407,30 @@ async function copyProjectId() {
 const project = ref<any | null>(null)
 const loading = ref(true)
 const error = ref("")
-const activeTab = ref("notes")
+const validTabs = ["notes", "tasks", "ai-context", "settings"]
+const initialTab = route.hash?.replace("#", "") || "notes"
+const activeTab = ref(validTabs.includes(initialTab) ? initialTab : "notes")
+
+const notesFetched = ref(false)
+const tasksFetched = ref(false)
+const keysFetched = ref(false)
+const aiContextFetched = ref(false)
+
+watch(() => route.hash, (hash) => {
+  const tab = hash?.replace("#", "")
+  if (tab && validTabs.includes(tab)) activeTab.value = tab
+})
+
+watch(activeTab, (tab) => {
+  router.replace({ hash: `#${tab}` })
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'notes' && !notesFetched.value) { fetchNotes(); notesFetched.value = true }
+  if (tab === 'tasks' && !tasksFetched.value) { fetchTasks(); tasksFetched.value = true }
+  if (tab === 'settings' && !keysFetched.value) { fetchKeys(); keysFetched.value = true }
+  if (tab === 'ai-context' && !aiContextFetched.value) { fetchAiContext(); aiContextFetched.value = true }
+})
 
 const tabs = [
   { key: "notes", label: "Notes", icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>' },
@@ -385,193 +443,144 @@ const settingsForm = ref({ name: "", description: "" })
 
 const agentPrompt = computed(() => {
   const apiKey = promptApiKey.value || keys.value[0]?.plain_text_key || "<your-api-key>"
-  return `# External Memory Rule — Simplernote AI API Integration
+  const config = useRuntimeConfig()
+  const apiBase = config.public.apiBase
+  return `# External Memory Rule — Simplernote AI Agent API
 
-You must use the external memory API at \`http://localhost:8000\` as the persistent memory, task orchestration, and AI knowledge backend for all long-running workflows, planning, coding sessions, debugging, research, and multi-agent execution.
+You use the Simplernote API at \`${apiBase}\` as persistent memory, task tracking, and knowledge backend.
 
-The API acts as the shared memory layer between sessions, agents, and workflows.
+The API is the shared memory layer between sessions and agents. You have full CRUD control over a single project.
 
 ---
 
-# CONFIGURATION REQUIREMENTS
-
-Before any API usage, the following must be defined:
+# CONFIGURATION
 
 \`\`\`bash id="cfg1"
 SIMPLERNOTE_API_KEY="${apiKey}"
 PROJECT_ID="${projectId}"
 \`\`\`
 
-### Validation Rule
-
-Before executing ANY API operation:
-
-* If \`SIMPLERNOTE_API_KEY\` is missing → request user input
-* If \`PROJECT_ID\` is missing → request user input
-* If either is missing → stop execution immediately
+If either value is missing → stop and request user input.
 
 ---
 
 # AUTHENTICATION
 
-All requests must include:
+All requests use the \`X-API-KEY\` header (NOT Bearer auth):
 
 \`\`\`http id="auth1"
-Authorization: Bearer ${apiKey}
-Content-Type: application/json
+X-API-KEY: ${apiKey}
 \`\`\`
 
-Base URL:
-
-\`\`\`text id="base1"
-http://localhost:8000
-\`\`\`
+Base URL: \`${apiBase}\`
 
 ---
 
-# CORE API SPECIFICATION
+# AGENT API — FULL CONTROL (\`${apiBase}/ai-agent\`)
 
-# NOTES API
+All endpoints use the \`X-API-KEY\` header. Requires the corresponding read/write permission on the API key.
 
-## Endpoints
+### Projects
 
-| Method | URL               |
-| ------ | ----------------- |
-| GET    | \`/api/notes/\`     |
-| POST   | \`/api/notes/\`     |
-| GET    | \`/api/notes/{id}\` |
-| PATCH  | \`/api/notes/{id}\` |
-| DELETE | \`/api/notes/{id}\` |
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | \`/ai-agent/projects\` | List accessible projects |
 
-## Example Usage
+### Notes — Full CRUD
 
-\`\`\`bash id="notes1"
-curl -H "Authorization: Bearer \$TOKEN" \\
-http://localhost:8000/api/notes/
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | \`/ai-agent/projects/{project_id}/notes\` | List notes in a project |
+| GET | \`/ai-agent/projects/{project_id}/notes?note_type=...\` | Filter by note type |
+| GET | \`/ai-agent/projects/{project_id}/notes?search=...\` | Search notes by title/content |
+| POST | \`/ai-agent/projects/{project_id}/notes\` | Create a note |
+| PATCH | \`/ai-agent/projects/{project_id}/notes/{id}\` | Update a note |
+| DELETE | \`/ai-agent/projects/{project_id}/notes/{id}\` | Soft-delete a note |
+| PATCH | \`/ai-agent/projects/{project_id}/notes/{id}/restore\` | Restore a deleted note |
+
+### Tasks — Full CRUD
+
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | \`/ai-agent/projects/{project_id}/tasks\` | List tasks in a project |
+| GET | \`/ai-agent/projects/{project_id}/tasks?status=...\` | Filter by status |
+| POST | \`/ai-agent/projects/{project_id}/tasks\` | Create a task |
+| PATCH | \`/ai-agent/projects/{project_id}/tasks/{id}\` | Update a task |
+| DELETE | \`/ai-agent/projects/{project_id}/tasks/{id}\` | Soft-delete a task |
+| PATCH | \`/ai-agent/projects/{project_id}/tasks/{id}/restore\` | Restore a deleted task |
+
+### AI Context — Full Control
+
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | \`/ai-agent/projects/{project_id}/context\` | Get project AI context |
+| POST | \`/ai-agent/projects/{project_id}/context\` | Create AI context |
+| PUT | \`/ai-agent/projects/{project_id}/context\` | Update AI context (replace content) |
+| DELETE | \`/ai-agent/projects/{project_id}/context\` | Delete AI context |
+| POST | \`/ai-agent/projects/{project_id}/context/import\` | Auto-import all notes & tasks into context |
+| GET | \`/ai-agent/search?query=...\` | Search across all notes and tasks |
+
+## Read Examples
+
+\`\`\`bash id="read1"
+# List projects
+curl -H "X-API-KEY: ${apiKey}" \\
+  ${apiBase}/ai-agent/projects
+
+# List notes in a project
+curl -H "X-API-KEY: ${apiKey}" \\
+  ${apiBase}/ai-agent/projects/${projectId}/notes
+
+# List tasks filtered by status
+curl -H "X-API-KEY: ${apiKey}" \\
+  ${apiBase}/ai-agent/projects/${projectId}/tasks?status=todo
+
+# Get project context
+curl -H "X-API-KEY: ${apiKey}" \\
+  ${apiBase}/ai-agent/projects/${projectId}/context
+
+# Search across notes and tasks
+curl -H "X-API-KEY: ${apiKey}" \\
+  "${apiBase}/ai-agent/search?query=deployment"
 \`\`\`
 
----
+## Write Examples
 
-## Create Note Example
-
-\`\`\`bash id="notes2"
-curl -X POST "http://localhost:8000/api/notes/" \\
--H "Authorization: Bearer \$TOKEN" \\
+\`\`\`bash id="write1"
+# Create a note
+curl -X POST "${apiBase}/ai-agent/projects/${projectId}/notes" \\
+-H "X-API-KEY: ${apiKey}" \\
 -H "Content-Type: application/json" \\
 -d '{
-  "project_id": "${projectId}",
   "title": "Deployment Steps",
   "content": "1. Build image\\n2. Push registry\\n3. Deploy manifests",
   "note_type": "documentation",
   "tags": ["deploy", "k8s"]
 }'
-\`\`\`
 
----
-
-# TASKS API
-
-## Endpoints
-
-| Method | URL               |
-| ------ | ----------------- |
-| GET    | \`/api/tasks/\`     |
-| POST   | \`/api/tasks/\`     |
-| GET    | \`/api/tasks/{id}\` |
-| PATCH  | \`/api/tasks/{id}\` |
-| DELETE | \`/api/tasks/{id}\` |
-
-## Example Usage
-
-\`\`\`bash id="tasks1"
-curl -H "Authorization: Bearer \$TOKEN" \\
-http://localhost:8000/api/tasks/
-\`\`\`
-
----
-
-## Create Task Example
-
-\`\`\`bash id="tasks2"
-curl -X POST "http://localhost:8000/api/tasks/" \\
--H "Authorization: Bearer \$TOKEN" \\
+# Create a task
+curl -X POST "${apiBase}/ai-agent/projects/${projectId}/tasks" \\
+-H "X-API-KEY: ${apiKey}" \\
 -H "Content-Type: application/json" \\
 -d '{
-  "project_id": "${projectId}",
   "title": "Review PR #42",
   "description": "Check auth middleware changes",
   "status": "todo",
   "priority": "high",
   "assigned_agent": "code-reviewer"
 }'
-\`\`\`
 
----
-
-# AI CONTEXT API
-
-## Endpoints
-
-| Method | URL                                    |
-| ------ | -------------------------------------- |
-| GET    | \`/api/ai-context/project/{project_id}\` |
-| POST   | \`/api/ai-context/\`                     |
-| PATCH  | \`/api/ai-context/{id}\`                 |
-| DELETE | \`/api/ai-context/{id}\`                 |
-| POST   | \`/api/ai-context/import\`               |
-| GET    | \`/api/ai-context/search?query=...\`      |
-
----
-
-## Get Project Context
-
-\`\`\`bash id="ctx1"
-curl -H "Authorization: Bearer \$TOKEN" \\
-http://localhost:8000/api/ai-context/project/${projectId}
-\`\`\`
-
----
-
-## Update Context Example
-
-\`\`\`bash id="ctx2"
-curl -X POST "http://localhost:8000/api/ai-context/" \\
--H "Authorization: Bearer \$TOKEN" \\
+# Update AI context
+curl -X PUT "${apiBase}/ai-agent/projects/${projectId}/context" \\
+-H "X-API-KEY: ${apiKey}" \\
 -H "Content-Type: application/json" \\
--d '{
-  "project_id": "${projectId}",
-  "current_focus": "system architecture",
-  "state": {
-    "backend": "in_progress",
-    "tasks_sync": "active"
-  }
-}'
-\`\`\`
+-d '{"content": "# Current Focus\\n\\nWorking on system architecture."}'
 
----
-
-## Import Context from Notes & Tasks
-
-Batch-import all notes and tasks from a project into the AI context document (auto-generates a structured summary).
-
-\`\`\`bash id="ctx3"
-curl -X POST "http://localhost:8000/api/ai-context/import" \\
--H "Authorization: Bearer \$TOKEN" \\
+# Auto-import all notes & tasks into context
+curl -X POST "${apiBase}/ai-agent/projects/${projectId}/context/import" \\
+-H "X-API-KEY: ${apiKey}" \\
 -H "Content-Type: application/json" \\
--d '{
-  "project_id": "${projectId}"
-}'
-\`\`\`
-
----
-
-## Search Notes & Tasks
-
-Search across notes and tasks in a project by text query.
-
-\`\`\`bash id="ctx4"
-curl "http://localhost:8000/api/ai-context/search?query=deployment&project_id=${projectId}" \\
--H "Authorization: Bearer \$TOKEN"
+-d '{}'
 \`\`\`
 
 ---
@@ -580,22 +589,12 @@ curl "http://localhost:8000/api/ai-context/search?query=deployment&project_id=${
 
 Before any response:
 
-1. Load AI context by project_id
-2. Retrieve all relevant notes
-3. Retrieve all active tasks
+1. Get project AI context (\`GET /api/ai-agent/projects/{project_id}/context\`)
+2. Retrieve relevant notes (\`GET /api/ai-agent/projects/{project_id}/notes\`)
+3. Retrieve active tasks (\`GET /api/ai-agent/projects/{project_id}/tasks\`)
 4. Continue from existing state
 
 Never recreate existing knowledge.
-
----
-
-# AI CONTEXT IMPORT
-
-Use \`POST /api/ai-context/import\` to batch-import all notes and tasks into the project's AI context document.
-
-* For initialization or migration
-* Can be called multiple times (updates existing context)
-* Requires \`write_ai_context\` permission
 
 ---
 
@@ -622,58 +621,9 @@ Use \`POST /api/ai-context/import\` to batch-import all notes and tasks into the
 * done
 * blocked
 
----
-
-# RATE LIMITING
-
-AI Context:
-
-* 30 requests per minute
-
-Use batching and avoid redundant calls.
-
----
-
-# MULTI-AGENT RULES
-
-All agents must share:
-
-* same API base
-* same API key
-* same project_id
-
-Roles:
-
-* planner → context + strategy
-* researcher → notes creation
-* coder → implementation tracking
-* reviewer → task updates
-* tester → validation
-
----
-
-# FAILURE HANDLING
-
-If API is unavailable:
-
-1. continue execution locally
-2. queue updates
-3. retry later
-4. sync when recovered
-
-Never lose data or progress.
-
----
-
-# OUTPUT RULES
-
-* concise
-* structured
-* memory-driven execution
-* reuse existing context
-* avoid duplication
-* enforce project continuity`
+---`
 })
+
 
 const taskStatusOptions = [
   { value: "backlog", label: "Backlog" },
@@ -732,7 +682,7 @@ const deletingNote = ref<any | null>(null)
 async function fetchNotes() {
   notesLoading.value = true
   try {
-    notes.value = (await api.get(`/notes?project_id=${projectId}`)).data
+    notes.value = (await api.get(`/projects/${projectId}/notes`)).data
   } catch { notes.value = [] }
   finally { notesLoading.value = false }
 }
@@ -752,9 +702,9 @@ function openEditNote(note: any) {
 async function saveNote() {
   try {
     if (editingNote.value) {
-      await api.patch(`/notes/${editingNote.value.id}`, noteForm.value)
+      await api.patch(`/projects/${projectId}/notes/${editingNote.value.id}`, noteForm.value)
     } else {
-      await api.post("/notes", { ...noteForm.value, project_id: projectId })
+      await api.post(`/projects/${projectId}/notes`, noteForm.value)
     }
     showNoteModal.value = false
     await fetchNotes()
@@ -770,13 +720,61 @@ function confirmDeleteNote(note: any) {
 async function deleteNote() {
   if (!deletingNote.value) return
   try {
-    await api.delete(`/notes/${deletingNote.value.id}`)
+    await api.delete(`/projects/${projectId}/notes/${deletingNote.value.id}`)
     showDeleteNote.value = false
     showNoteModal.value = false
     deletingNote.value = null
     toast.success("Note deleted")
     await fetchNotes()
   } catch (e: any) { toast.error(e?.response?.data?.detail || "Error deleting note") }
+}
+
+const exporting = ref(false)
+const importCopied = ref(false)
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+async function exportJson() {
+  exporting.value = true
+  try {
+    const res = await api.get(`/export?project_id=${projectId}`, { responseType: "blob" })
+    downloadBlob(new Blob([res.data], { type: "application/json" }), `simplernote-${projectId}.json`)
+    toast.success("JSON export downloaded")
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Export failed") }
+  finally { exporting.value = false }
+}
+
+async function exportMarkdown() {
+  exporting.value = true
+  try {
+    const res = await api.get(`/export?project_id=${projectId}&format=markdown`, { responseType: "blob" })
+    downloadBlob(new Blob([res.data], { type: "text/markdown" }), `simplernote-${projectId}.md`)
+    toast.success("Markdown export downloaded")
+  } catch (e: any) { toast.error(e?.response?.data?.detail || "Export failed") }
+  finally { exporting.value = false }
+}
+
+function copyImportPrompt() {
+  const text = `Import notes and tasks into this project (${projectId}) using the Simplernote API.
+
+- POST /api/ai-agent/projects/${projectId}/notes — create notes
+- POST /api/ai-agent/projects/${projectId}/tasks — create tasks
+- POST /api/ai-agent/projects/${projectId}/context/import — batch-import all notes+tasks into the AI context document
+
+Use the X-API-KEY header for authentication.`
+  navigator.clipboard.writeText(text)
+  importCopied.value = true
+  toast.success("Import prompt copied")
+  setTimeout(() => { importCopied.value = false }, 3000)
 }
 
 const tasks = ref<any[]>([])
@@ -809,7 +807,7 @@ const groupedTasks = computed(() => {
 async function fetchTasks() {
   tasksLoading.value = true
   try {
-    tasks.value = (await api.get(`/tasks?project_id=${projectId}`)).data
+    tasks.value = (await api.get(`/projects/${projectId}/tasks`)).data
   } catch { tasks.value = [] }
   finally { tasksLoading.value = false }
 }
@@ -829,9 +827,9 @@ function openEditTask(task: any) {
 async function saveTask() {
   try {
     if (editingTask.value) {
-      await api.patch(`/tasks/${editingTask.value.id}`, taskForm.value)
+      await api.patch(`/projects/${projectId}/tasks/${editingTask.value.id}`, taskForm.value)
     } else {
-      await api.post("/tasks", { ...taskForm.value, project_id: projectId })
+      await api.post(`/projects/${projectId}/tasks`, taskForm.value)
     }
     showTaskModal.value = false
     await fetchTasks()
@@ -903,7 +901,7 @@ const showAiDelete = ref(false)
 async function fetchAiContext() {
   aiLoading.value = true
   try {
-    const res = await api.get(`/ai-context/project/${projectId}`)
+    const res = await api.get(`/projects/${projectId}/ai-context`)
     aiContext.value = res.data
     aiFormContent.value = res.data.content || ""
   } catch {
@@ -919,11 +917,11 @@ async function saveAiContext() {
   aiSaving.value = true
   try {
     if (aiContext.value) {
-      const res = await api.patch(`/ai-context/${aiContext.value.id}`, { content: aiFormContent.value })
+      const res = await api.patch(`/projects/${projectId}/ai-context`, { content: aiFormContent.value })
       aiContext.value = res.data
       toast.success("Context saved")
     } else {
-      const res = await api.post("/ai-context", { project_id: projectId, content: aiFormContent.value })
+      const res = await api.post(`/projects/${projectId}/ai-context`, { content: aiFormContent.value })
       aiContext.value = res.data
       toast.success("Context created")
     }
@@ -946,7 +944,7 @@ function confirmAiDelete() { showAiDelete.value = true }
 async function deleteAiContext() {
   if (!aiContext.value) return
   try {
-    await api.delete(`/ai-context/${aiContext.value.id}`)
+    await api.delete(`/projects/${projectId}/ai-context`)
     aiContext.value = null
     aiFormContent.value = ""
     showAiDelete.value = false
@@ -975,9 +973,10 @@ function formatDate(d: string) {
 
 onMounted(() => {
   fetchProject()
-  fetchNotes()
-  fetchTasks()
-  fetchKeys()
-  fetchAiContext()
+  const tab = activeTab.value
+  if (tab === 'notes') { fetchNotes(); notesFetched.value = true }
+  if (tab === 'tasks') { fetchTasks(); tasksFetched.value = true }
+  if (tab === 'settings') { fetchKeys(); keysFetched.value = true }
+  if (tab === 'ai-context') { fetchAiContext(); aiContextFetched.value = true }
 })
 </script>

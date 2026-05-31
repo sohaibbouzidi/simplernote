@@ -7,45 +7,38 @@ You can interact with Simplernote programmatically using API keys. All endpoints
 ## Configuration
 
 - **Base URL**: `http://localhost:8000/api`
-- **Auth**: `Authorization: Bearer YOUR_API_KEY`
+- **Auth**: `X-API-KEY: YOUR_API_KEY`
 - **Content-Type**: `application/json`
 
 ---
 
 ## Endpoints
 
-### AI Context — search and import knowledge
+### AI Agent API — full CRUD, X-API-KEY header
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| GET | `/ai-context/search?query=...` | Search notes and tasks |
-| POST | `/ai-context/import` | Batch import notes and tasks |
+| GET | `/ai-agent/projects` | List accessible projects |
+| GET | `/ai-agent/projects/{project_id}/notes` | List notes in a project |
+| GET | `/ai-agent/projects/{project_id}/notes?note_type=...` | Filter notes by type |
+| GET | `/ai-agent/projects/{project_id}/notes?search=...` | Search notes by title/content |
+| POST | `/ai-agent/projects/{project_id}/notes` | Create a note |
+| PATCH | `/ai-agent/projects/{project_id}/notes/{note_id}` | Update a note |
+| DELETE | `/ai-agent/projects/{project_id}/notes/{note_id}` | Delete a note |
+| PATCH | `/ai-agent/projects/{project_id}/notes/{note_id}/restore` | Restore a deleted note |
+| GET | `/ai-agent/projects/{project_id}/tasks` | List tasks in a project |
+| GET | `/ai-agent/projects/{project_id}/tasks?status=...` | Filter tasks by status |
+| POST | `/ai-agent/projects/{project_id}/tasks` | Create a task |
+| PATCH | `/ai-agent/projects/{project_id}/tasks/{task_id}` | Update a task |
+| DELETE | `/ai-agent/projects/{project_id}/tasks/{task_id}` | Delete a task |
+| PATCH | `/ai-agent/projects/{project_id}/tasks/{task_id}/restore` | Restore a deleted task |
+| GET | `/ai-agent/projects/{project_id}/context` | Get AI context for a project |
+| POST | `/ai-agent/projects/{project_id}/context` | Create AI context |
+| PUT | `/ai-agent/projects/{project_id}/context` | Update AI context |
+| DELETE | `/ai-agent/projects/{project_id}/context` | Delete AI context |
+| POST | `/ai-agent/projects/{project_id}/context/import` | Auto-import notes+tasks into context |
+| GET | `/ai-agent/search?query=...` | Search across notes and tasks |
 
-### Notes — structured notes with types, tags, metadata
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/notes` | List all notes |
-| POST | `/notes` | Create a note |
-| GET | `/notes/:id` | Get a note |
-| PATCH | `/notes/:id` | Update a note |
-| DELETE | `/notes/:id` | Delete a note |
-
-### Tasks — status lanes, priorities, agent assignment
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/tasks` | List all tasks |
-| POST | `/tasks` | Create a task |
-| GET | `/tasks/:id` | Get a task |
-| PATCH | `/tasks/:id` | Update a task |
-| DELETE | `/tasks/:id` | Delete a task |
-
-### Projects — workspaces grouping notes and tasks
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/projects` | List all projects |
-| POST | `/projects` | Create a project |
-| GET | `/projects/:id` | Get a project |
-| PATCH | `/projects/:id` | Update a project |
-| DELETE | `/projects/:id` | Delete a project |
+All entities (projects, notes, tasks, contexts) use **soft-delete**: deleted items are hidden from listings but can be restored. Deleting a project also soft-deletes all its notes, tasks, and context; restoring the project restores them too.
 
 ### API Keys — manage agent credentials
 | Method | Endpoint | Purpose |
@@ -59,34 +52,32 @@ You can interact with Simplernote programmatically using API keys. All endpoints
 |--------|----------|---------|
 | GET | `/activity-logs` | List activity logs |
 
-### Auth — user authentication
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/auth/register` | Register a new user (sends confirmation email) |
-| POST | `/auth/login` | Login |
-| POST | `/auth/refresh` | Refresh access token |
-| POST | `/auth/confirm-email` | Confirm email address with token |
-| POST | `/auth/forgot-password` | Request password reset email |
-| POST | `/auth/reset-password` | Reset password with token |
-| GET | `/auth/me` | Get current user profile |
-| PATCH | `/auth/password` | Change password (requires auth)
-
 ---
 
 ## Examples
 
 ```bash
-# Search context
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  "http://localhost:8000/api/ai-context/search?query=deployment+steps"
+# List projects (AI agent API - X-API-KEY header)
+curl -H "X-API-KEY: YOUR_API_KEY" \
+  "http://localhost:8000/api/ai-agent/projects"
 
-# List projects
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  "http://localhost:8000/api/projects"
+# List notes in a project (AI agent API)
+curl -H "X-API-KEY: YOUR_API_KEY" \
+  "http://localhost:8000/api/ai-agent/projects/{project_id}/notes"
 
-# Create a task
-curl -X POST "http://localhost:8000/api/tasks" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+# Search across notes and tasks (AI agent API)
+curl -H "X-API-KEY: YOUR_API_KEY" \
+  "http://localhost:8000/api/ai-agent/search?query=deployment"
+
+# Create a task (AI agent API)
+curl -X POST "http://localhost:8000/api/ai-agent/projects/{project_id}/tasks" \
+  -H "X-API-KEY: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"project_id": "...", "title": "Review PR", "status": "todo", "priority": "high"}'
+  -d '{"title": "Review PR", "status": "todo", "priority": "high"}'
+
+# Update AI context (AI agent API)
+curl -X PUT "http://localhost:8000/api/ai-agent/projects/{project_id}/context" \
+  -H "X-API-KEY: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "# Current Focus\n\nWorking on deployment automation."}'
 ```

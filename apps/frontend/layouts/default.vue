@@ -67,6 +67,7 @@ const navLinks = [
   { label: "Dashboard", to: "/dashboard" },
   { label: "Projects", to: "/projects" },
   { label: "Activity", to: "/activity-logs" },
+  { label: "API Docs", to: "/api-documentation" },
 ]
 
 if (auth.isAdmin) {

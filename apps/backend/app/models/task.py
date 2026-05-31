@@ -21,6 +21,7 @@ class Task(Base):
     meta = Column('meta', JSONB, nullable=False, default=dict)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True, default=None)
 
     project = relationship("Project", back_populates="tasks")
     subtasks = relationship("Task", backref="parent", remote_side=[id])

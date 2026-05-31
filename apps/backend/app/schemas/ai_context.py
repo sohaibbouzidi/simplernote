@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 
 class AiContextCreateSchema(BaseModel):
-    project_id: UUID
     content: str = ""
 
 

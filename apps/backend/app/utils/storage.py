@@ -50,6 +50,11 @@ def generate_presigned_url(key: str, expires_in: int = 3600) -> str:
         url = client.generate_presigned_url(
             "get_object", Params={"Bucket": bucket, "Key": key}, ExpiresIn=expires_in
         )
+        public = settings.S3_PUBLIC_ENDPOINT
+        if public:
+            internal = settings.S3_ENDPOINT_URL
+            if internal and url.startswith(internal.rstrip("/")):
+                url = public.rstrip("/") + url[len(internal.rstrip("/")):]
         return url
     except ClientError:
         raise

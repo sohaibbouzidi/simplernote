@@ -1,49 +1,166 @@
+# version: "3.9"
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: simplernote-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-simplernote}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - simplernote_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Don't expose port - only accessible via container network
 
+  # Redis Cache
   redis:
-    image: redis:7
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
+    image: redis:7-alpine
+    container_name: simplernote-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - simplernote_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    command: redis-server --appendonly yes
+    # Don't expose port - only accessible via container network
 
+  # MinIO S3 Storage
+  minio:
+    image: minio/minio:latest
+    container_name: simplernote-minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    networks:
+      - simplernote_network
+    # Only expose console internally, not API
+    ports:
+      - "127.0.0.1:9001:9001"
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
   backend:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
-    volumes:
-      - ./apps/backend:/app
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./apps/backend/.env
+    container_name: simplernote-backend
+    restart: always
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/simplernote}
-      - REDIS_URL=redis://redis:6379/0
-      - JWT_SECRET=${JWT_SECRET:-supersecretchangeme}
-      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-["http://localhost:3000"]}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-simplernote}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-supersecretchangeme}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-["http://localhost:3000","https://localhost"]}
+      API_BASE_URL: ${API_BASE_URL:-https://localhost/api}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-https://localhost/minio}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-simplernote}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_USE_SSL: ${S3_USE_SSL:-false}
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+    volumes:
+      - ./apps/backend/logs:/app/logs
+    networks:
+      - simplernote_network
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import http.client; c=http.client.HTTPConnection('localhost',8000); c.request('GET','/health'); r=c.getresponse(); exit(0) if r.status==200 else exit(1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
+  # Nuxt.js Frontend
   frontend:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+    container_name: simplernote-frontend
+    restart: always
     environment:
-      - NUXT_HOST=0.0.0.0
-      - NUXT_PORT=3000
-      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000/api}
+      NUXT_HOST: 0.0.0.0
+      NUXT_PORT: 3000
+      API_BASE_URL: ${API_BASE_URL:-https://localhost/api}
+      NODE_ENV: production
+    networks:
+      - simplernote_network
     depends_on:
-      backend:
-        condition: service_started
-    restart: unless-stopped
+      - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
+  # Nginx Reverse Proxy
+  nginx:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.nginx
+    container_name: simplernote-nginx
+    restart: always
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_logs:/var/log/nginx
+      # Mount SSL certificates (optional - self-signed by default)
+      - ${SSL_CERT_PATH:-/dev/null}:/etc/nginx/ssl/cert.pem:ro
+      - ${SSL_KEY_PATH:-/dev/null}:/etc/nginx/ssl/key.pem:ro
+    networks:
+      - simplernote_network
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+networks:
+  simplernote_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  nginx_logs:
+    driver: local

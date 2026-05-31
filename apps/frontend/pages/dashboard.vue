@@ -19,7 +19,7 @@
         <NuxtLink to="/projects" class="rounded-md border border-slate-800 bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-400">New project</NuxtLink>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-3">
+      <div class="grid gap-4 sm:grid-cols-1">
         <div class="rounded-lg border border-slate-800 bg-surface-50 p-5">
           <div class="flex items-center gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-md bg-brand-500/20">
@@ -31,28 +31,6 @@
             </div>
           </div>
         </div>
-        <div class="rounded-lg border border-slate-800 bg-surface-50 p-5">
-          <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-md bg-amber-500/20">
-              <svg class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            </div>
-            <div>
-              <p class="text-2xl font-semibold text-white">{{ stats.notes }}</p>
-              <p class="text-sm text-slate-400">Notes</p>
-            </div>
-          </div>
-        </div>
-        <div class="rounded-lg border border-slate-800 bg-surface-50 p-5">
-          <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-md bg-brand-500/20">
-              <svg class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-            </div>
-            <div>
-              <p class="text-2xl font-semibold text-white">{{ stats.tasks }}</p>
-              <p class="text-sm text-slate-400">Tasks</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       <section class="rounded-lg border border-slate-800">
@@ -61,7 +39,7 @@
         </div>
         <div v-if="recentProjects.length === 0" class="px-5 py-12 text-center text-sm text-slate-400">
           <p class="mb-3">No projects yet</p>
-          <NuxtLink to="/projects/new" class="text-brand-400 hover:underline">Create your first project</NuxtLink>
+          <NuxtLink to="/projects" class="text-brand-400 hover:underline">Create your first project</NuxtLink>
         </div>
         <div v-else class="divide-y divide-slate-800">
           <NuxtLink v-for="p in recentProjects" :key="p.id" :to="`/projects/${p.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-surface-50">
@@ -105,7 +83,7 @@ import { getApiInstance } from "@/services/api"
 
 const auth = useAuthStore()
 const api = getApiInstance()
-const stats = ref({ notes: 0, tasks: 0, projects: 0 })
+const stats = ref({ projects: 0 })
 const recentProjects = ref<any[]>([])
 const recentLogs = ref<any[]>([])
 const loading = ref(true)
@@ -118,13 +96,11 @@ function formatDate(d: string) {
 async function loadDashboard() {
   loading.value = true; error.value = ""
   try {
-    const [notesRes, tasksRes, projectsRes, logsRes] = await Promise.all([
-      api.get("/notes"),
-      api.get("/tasks"),
+    const [projectsRes, logsRes] = await Promise.all([
       api.get("/projects"),
       api.get("/activity-logs"),
     ])
-    stats.value = { notes: notesRes.data.length, tasks: tasksRes.data.length, projects: projectsRes.data.length }
+    stats.value = { projects: projectsRes.data.length }
     recentProjects.value = projectsRes.data.slice(0, 5)
     recentLogs.value = logsRes.data.slice(0, 5)
   } catch (e: any) {

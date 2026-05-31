@@ -34,36 +34,34 @@ def _serialize_note(n):
 
 class NoteService:
     @staticmethod
-    def list_notes(db: Session, user_id: str, project_id=None, note_type=None, search=None):
+    def list_notes(db: Session, user_id: str, project_id: str, note_type=None, search=None, with_deleted=False):
         cache_key = _note_cache_key(user_id, project_id=project_id, note_type=note_type, search=search)
         r = get_redis()
-        if r:
+        if r and not with_deleted:
             cached = r.get(cache_key)
             if cached:
                 return json.loads(cached)
-
-        notes = NoteRepository.list(db, user_id, project_id=project_id, note_type=note_type, search=search)
-        if r:
+        notes = NoteRepository.list(db, user_id, project_id, note_type=note_type, search=search, with_deleted=with_deleted)
+        if r and not with_deleted:
             r.setex(cache_key, CACHE_TTL, json.dumps([_serialize_note(n) for n in notes], default=str))
         return notes
 
     @staticmethod
-    def create_note(db: Session, user_id: str, note_in: NoteCreateSchema):
-        note = NoteRepository.create(db, user_id, note_in)
+    def create_note(db: Session, user_id: str, project_id: str, note_in: NoteCreateSchema):
+        note = NoteRepository.create(db, user_id, project_id, note_in)
         cache_invalidate_pattern(f"notes:list:{user_id}:*")
         return note
 
     @staticmethod
-    def get_note(db: Session, note_id: str, user_id: str):
+    def get_note(db: Session, note_id: str, user_id: str, project_id: str = None, with_deleted=False):
         cache_key = _note_cache_key(user_id, note_id=note_id)
         r = get_redis()
-        if r:
+        if r and not with_deleted:
             cached = r.get(cache_key)
             if cached:
                 return json.loads(cached)
-
-        note = NoteRepository.get(db, note_id, user_id)
-        if r and note:
+        note = NoteRepository.get(db, note_id, user_id, project_id=project_id, with_deleted=with_deleted)
+        if r and note and not with_deleted:
             r.setex(cache_key, CACHE_TTL, json.dumps(_serialize_note(note), default=str))
         return note
 
@@ -77,10 +75,20 @@ class NoteService:
         return note
 
     @staticmethod
-    def delete_note(db: Session, note_id: str, user_id: str):
-        note = NoteRepository.get(db, note_id, user_id)
+    def delete_note(db: Session, note_id: str, user_id: str, project_id: str = None):
+        note = NoteRepository.get(db, note_id, user_id, project_id=project_id)
         if not note:
             return False
         NoteRepository.delete(db, note)
         cache_invalidate_pattern(f"notes:*:{user_id}:*")
         return True
+
+    @staticmethod
+    def restore_note(db: Session, note_id: str, user_id: str, project_id: str = None):
+        note = NoteRepository.get(db, note_id, user_id, project_id=project_id, with_deleted=True)
+        if not note or note.deleted_at is None:
+            return None
+        note.deleted_at = None
+        db.commit()
+        cache_invalidate_pattern(f"notes:*:{user_id}:*")
+        return note

@@ -20,15 +20,12 @@ from app.models.ai_context import AiContext
 from app.core.rate_limit import rate_limit
 
 router = APIRouter(dependencies=[Depends(rate_limit(30, 60))])
-
-
-class ImportSchema(BaseModel):
-    project_id: str
+search_router = APIRouter(dependencies=[Depends(rate_limit(30, 60))])
 
 
 class SearchResultItem(BaseModel):
     id: str
-    type: str = "note"  # "note" or "task"
+    type: str = "note"
     project_id: str
     title: str
     content: Optional[str] = None
@@ -39,19 +36,72 @@ class SearchResultItem(BaseModel):
     updated_at: Optional[datetime] = None
 
 
-@router.post("/import", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
-def import_context(
-    data: ImportSchema,
+@router.get("", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["read_ai_context"]))])
+def get_ai_context(
+    project_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(AuthService.get_current_user),
 ):
-    project = db.query(Project).filter(Project.id == data.project_id).first()
+    ctx = AiContextService.get_by_project(db, project_id, user_id=str(current_user.id))
+    if not ctx:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No AI context for this project")
+    return ctx
+
+
+@router.post("", response_model=AiContextSchema, status_code=status.HTTP_201_CREATED, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def create_ai_context(
+    project_id: str,
+    data: AiContextCreateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    existing = AiContextService.get_by_project(db, project_id, user_id=str(current_user.id))
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="AI context already exists for this project")
+    project = db.query(Project).filter(Project.id == project_id, Project.created_by == current_user.id, Project.deleted_at.is_(None)).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return AiContextService.create(db, str(current_user.id), project_id, data)
+
+
+@router.patch("", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def update_ai_context(
+    project_id: str,
+    data: AiContextUpdateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    ctx = AiContextService.get_by_project(db, project_id, user_id=str(current_user.id))
+    if not ctx:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No AI context for this project")
+    return AiContextService.update(db, ctx, data)
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def delete_ai_context(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    ctx = AiContextService.get_by_project(db, project_id, user_id=str(current_user.id))
+    if not ctx:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No AI context for this project")
+    AiContextService.delete(db, ctx)
+
+
+@router.post("/import", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def import_context(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.created_by == current_user.id, Project.deleted_at.is_(None)).first()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
     user_id = current_user.id
-    notes = db.query(Note).filter(Note.project_id == data.project_id).all()
-    tasks = db.query(Task).filter(Task.project_id == data.project_id).all()
+    notes = db.query(Note).filter(Note.project_id == project_id, Note.created_by == user_id, Note.deleted_at.is_(None)).all()
+    tasks = db.query(Task).filter(Task.project_id == project_id, Task.created_by == user_id, Task.deleted_at.is_(None)).all()
 
     lines = [f"# AI Context for Project: {project.name}"]
     if notes:
@@ -74,16 +124,16 @@ def import_context(
 
     content = "\n".join(lines)
 
-    existing = AiContextService.get_by_project(db, data.project_id)
+    existing = AiContextService.get_by_project(db, project_id, user_id=str(user_id))
     if existing:
         existing.content = content
         db.commit()
         db.refresh(existing)
         return existing
-    return AiContextService.create(db, user_id, AiContextCreateSchema(project_id=UUID(data.project_id), content=content))
+    return AiContextService.create(db, user_id, project_id, AiContextCreateSchema(content=content))
 
 
-@router.get("/search", response_model=List[SearchResultItem])
+@search_router.get("/search", response_model=List[SearchResultItem])
 def search_context(
     query: str = Query(..., min_length=1),
     project_id: Optional[str] = None,
@@ -95,6 +145,7 @@ def search_context(
 
     note_q = db.query(Note).filter(
         Note.created_by == user_id,
+        Note.deleted_at.is_(None),
         Note.title.ilike(f"%{query}%") | Note.content.ilike(f"%{query}%") | Note.summary.ilike(f"%{query}%"),
     )
     if project_id:
@@ -108,6 +159,7 @@ def search_context(
 
     task_q = db.query(Task).filter(
         Task.created_by == user_id,
+        Task.deleted_at.is_(None),
         Task.title.ilike(f"%{query}%") | Task.description.ilike(f"%{query}%"),
     )
     if project_id:
@@ -120,55 +172,3 @@ def search_context(
         ))
 
     return results
-
-
-@router.get("/project/{project_id}", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["read_ai_context"]))])
-def get_ai_context(
-    project_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(AuthService.get_current_user),
-):
-    ctx = AiContextService.get_by_project(db, project_id)
-    if not ctx:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No AI context for this project")
-    return ctx
-
-
-@router.post("", response_model=AiContextSchema, status_code=status.HTTP_201_CREATED, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
-def create_ai_context(
-    data: AiContextCreateSchema,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(AuthService.get_current_user),
-):
-    existing = AiContextService.get_by_project(db, data.project_id)
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="AI context already exists for this project")
-    project = db.query(Project).filter(Project.id == data.project_id).first()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    return AiContextService.create(db, str(current_user.id), data)
-
-
-@router.patch("/{context_id}", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
-def update_ai_context(
-    context_id: str,
-    data: AiContextUpdateSchema,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(AuthService.get_current_user),
-):
-    ctx = db.query(AiContext).filter(AiContext.id == context_id).first()
-    if not ctx:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="AI context not found")
-    return AiContextService.update(db, ctx, data)
-
-
-@router.delete("/{context_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
-def delete_ai_context(
-    context_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(AuthService.get_current_user),
-):
-    ctx = db.query(AiContext).filter(AiContext.id == context_id).first()
-    if not ctx:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="AI context not found")
-    AiContextService.delete(db, ctx)

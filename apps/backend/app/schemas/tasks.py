@@ -4,8 +4,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict
 
 
-class TaskBaseSchema(BaseModel):
-    project_id: UUID
+class TaskCreateSchema(BaseModel):
     parent_task_id: Optional[UUID] = None
     title: str
     description: Optional[str] = None
@@ -13,10 +12,6 @@ class TaskBaseSchema(BaseModel):
     priority: str = Field(default="medium", pattern="^(low|medium|high)$")
     assigned_agent: Optional[str] = None
     meta: Dict[str, object] = Field(default_factory=dict)
-
-
-class TaskCreateSchema(TaskBaseSchema):
-    pass
 
 
 class TaskUpdateSchema(BaseModel):
@@ -28,8 +23,16 @@ class TaskUpdateSchema(BaseModel):
     meta: Optional[Dict[str, object]] = None
 
 
-class TaskSchema(TaskBaseSchema):
+class TaskSchema(BaseModel):
     id: UUID
+    project_id: UUID
+    parent_task_id: Optional[UUID] = None
+    title: str
+    description: Optional[str] = None
+    status: str
+    priority: str
+    assigned_agent: Optional[str] = None
+    meta: Dict[str, object]
     created_by: UUID
     created_at: datetime
 

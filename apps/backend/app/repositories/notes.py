@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -7,10 +8,10 @@ from app.schemas.notes import NoteCreateSchema, NoteUpdateSchema
 
 class NoteRepository:
     @staticmethod
-    def list(db: Session, user_id: str, project_id=None, note_type=None, search=None):
-        query = db.query(Note).filter(Note.created_by == user_id)
-        if project_id:
-            query = query.filter(Note.project_id == project_id)
+    def list(db: Session, user_id: str, project_id: str, note_type=None, search=None, with_deleted=False):
+        query = db.query(Note).filter(Note.created_by == user_id, Note.project_id == project_id)
+        if not with_deleted:
+            query = query.filter(Note.deleted_at.is_(None))
         if note_type:
             query = query.filter(Note.note_type == note_type)
         if search:
@@ -19,12 +20,17 @@ class NoteRepository:
         return query.order_by(Note.updated_at.desc()).all()
 
     @staticmethod
-    def get(db: Session, note_id: str, user_id: str):
-        return db.query(Note).filter(Note.id == note_id, Note.created_by == user_id).first()
+    def get(db: Session, note_id: str, user_id: str, project_id: str = None, with_deleted=False):
+        query = db.query(Note).filter(Note.id == note_id, Note.created_by == user_id)
+        if project_id:
+            query = query.filter(Note.project_id == project_id)
+        if not with_deleted:
+            query = query.filter(Note.deleted_at.is_(None))
+        return query.first()
 
     @staticmethod
-    def create(db: Session, user_id: str, note_in: NoteCreateSchema):
-        note = Note(created_by=user_id, **note_in.model_dump())
+    def create(db: Session, user_id: str, project_id: str, note_in: NoteCreateSchema):
+        note = Note(created_by=user_id, project_id=project_id, **note_in.model_dump())
         db.add(note)
         db.commit()
         db.refresh(note)
@@ -40,5 +46,12 @@ class NoteRepository:
 
     @staticmethod
     def delete(db: Session, note: Note):
-        db.delete(note)
+        note.deleted_at = datetime.utcnow()
         db.commit()
+
+    @staticmethod
+    def restore(db: Session, note: Note):
+        note.deleted_at = None
+        db.commit()
+        db.refresh(note)
+        return note
