@@ -55,7 +55,8 @@ class TestProjects:
         resp = client.get(f"/api/projects/{pid}", headers=auth_header)
         assert resp.status_code == 404
 
-    def test_cannot_access_other_users_project(self, client, user_data, auth_header):
+    def test_cannot_access_other_users_project(self, client, user_data, auth_header, db):
+        from app.models.user import User
         client.post("/api/auth/register", json={
             "email": "other@example.com",
             "password": "OtherPass1!",
@@ -64,6 +65,9 @@ class TestProjects:
             "country": "UK",
             "city": "London",
         })
+        other_user = db.query(User).filter(User.email == "other@example.com").first()
+        other_user.email_confirmed = True
+        db.commit()
         login = client.post("/api/auth/login", json={"email": "other@example.com", "password": "OtherPass1!"})
         other_token = login.json()["access_token"]
 

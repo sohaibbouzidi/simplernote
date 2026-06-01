@@ -171,8 +171,13 @@ const submit = async () => {
       formError.value = "Invalid email or password."
       showResend.value = false
     } else if (status === 403) {
-      formError.value = detail || "Please confirm your email before logging in."
-      showResend.value = true
+      if (detail === "Account is disabled") {
+        formError.value = "This account has been disabled. Contact an administrator."
+        showResend.value = false
+      } else {
+        formError.value = detail || "Please confirm your email before logging in."
+        showResend.value = true
+      }
     } else if (status === 422 && Array.isArray(detail)) {
       detail.forEach((err: any) => {
         const field = err.loc?.at(-1)

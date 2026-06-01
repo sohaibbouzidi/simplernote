@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -18,7 +19,7 @@ class APIKey(Base):
     permissions = Column(JSONB, nullable=False, default=dict)
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: now(), nullable=False)
 
     user = relationship("User")
     project = relationship("Project")

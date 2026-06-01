@@ -44,8 +44,12 @@ class TestAuth:
         })
         assert resp.status_code == 422
 
-    def test_login_success(self, client, user_data):
+    def test_login_success(self, client, user_data, db):
+        from app.models.user import User
         client.post("/api/auth/register", json=user_data)
+        user = db.query(User).filter(User.email == user_data["email"]).first()
+        user.email_confirmed = True
+        db.commit()
         resp = client.post("/api/auth/login", json={
             "email": user_data["email"],
             "password": user_data["password"],
@@ -56,8 +60,12 @@ class TestAuth:
         assert "refresh_token" in data
         assert data["token_type"] == "bearer"
 
-    def test_login_updates_last_login_at(self, client, user_data):
+    def test_login_updates_last_login_at(self, client, user_data, db):
+        from app.models.user import User
         client.post("/api/auth/register", json=user_data)
+        user = db.query(User).filter(User.email == user_data["email"]).first()
+        user.email_confirmed = True
+        db.commit()
         token = client.post("/api/auth/login", json={
             "email": user_data["email"],
             "password": user_data["password"],
@@ -116,8 +124,12 @@ class TestAuth:
         resp = client.get("/api/auth/me")
         assert resp.status_code == 401
 
-    def test_refresh_token(self, client, user_data):
+    def test_refresh_token(self, client, user_data, db):
+        from app.models.user import User
         client.post("/api/auth/register", json=user_data)
+        user = db.query(User).filter(User.email == user_data["email"]).first()
+        user.email_confirmed = True
+        db.commit()
         login_resp = client.post("/api/auth/login", json={
             "email": user_data["email"],
             "password": user_data["password"],
@@ -131,15 +143,8 @@ class TestAuth:
         register_resp = client.post("/api/auth/register", json=user_data)
         assert register_resp.status_code == 201
         assert register_resp.json()["email_confirmed"] is False
-        me_resp = client.post("/api/auth/login", json={
-            "email": user_data["email"],
-            "password": user_data["password"],
-        })
-        token = me_resp.json()["access_token"]
-        me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
-        assert me.json()["email_confirmed"] is False
         # Without SMTP configured, the email send is a no-op
-        # We test the endpoint directly via /me checking email_confirmed is False
+        # We verify email is not confirmed from the register response
         resp = client.post("/api/auth/confirm-email", json={"token": "invalid-token"})
         assert resp.status_code == 400
 
@@ -178,35 +183,25 @@ class TestAuth:
         assert resp.status_code == 200
         assert "sent" in resp.json()["message"].lower()
 
-    def test_login_blocked_when_enforcing(self, client, user_data):
-        from app.core.config import settings
-        settings.ENFORCE_EMAIL_CONFIRMATION = True
-        try:
-            client.post("/api/auth/register", json=user_data)
-            resp = client.post("/api/auth/login", json={
-                "email": user_data["email"],
-                "password": user_data["password"],
-            })
-            assert resp.status_code == 403
-            assert "confirm" in resp.json()["detail"].lower()
-        finally:
-            settings.ENFORCE_EMAIL_CONFIRMATION = False
+    def test_login_blocked_unconfirmed_email(self, client, user_data):
+        client.post("/api/auth/register", json=user_data)
+        resp = client.post("/api/auth/login", json={
+            "email": user_data["email"],
+            "password": user_data["password"],
+        })
+        assert resp.status_code == 403
+        assert "confirm" in resp.json()["detail"].lower()
 
-    def test_login_allowed_when_enforcing_and_confirmed(self, client, user_data, db):
-        from app.core.config import settings
+    def test_login_allows_confirmed_email(self, client, user_data, db):
         from app.models.user import User
         test_email = "confirmed@example.com"
         client.post("/api/auth/register", json={**user_data, "email": test_email})
         user = db.query(User).filter(User.email == test_email).first()
         user.email_confirmed = True
         db.commit()
-        settings.ENFORCE_EMAIL_CONFIRMATION = True
-        try:
-            resp = client.post("/api/auth/login", json={
-                "email": test_email,
-                "password": user_data["password"],
-            })
-            assert resp.status_code == 200
-            assert "access_token" in resp.json()
-        finally:
-            settings.ENFORCE_EMAIL_CONFIRMATION = False
+        resp = client.post("/api/auth/login", json={
+            "email": test_email,
+            "password": user_data["password"],
+        })
+        assert resp.status_code == 200
+        assert "access_token" in resp.json()

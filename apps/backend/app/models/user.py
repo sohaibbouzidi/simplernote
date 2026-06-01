@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy import Column, String, Boolean, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -17,7 +18,7 @@ class User(Base):
     totp_secret = Column(String(32), nullable=True)
     totp_enabled = Column(Boolean, default=False, nullable=False)
     role = Column(String(20), default="user", nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: now(), nullable=False)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
     profile_updated_at = Column(DateTime(timezone=True), nullable=True)
     first_name = Column(String(128), nullable=True)

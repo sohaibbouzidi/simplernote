@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime
+from app.utils.timezone import now
 from typing import Tuple, Optional
 
 from sqlalchemy.orm import Session
@@ -64,7 +65,7 @@ class APIKeyService:
         api_key = APIKeyRepository.get_by_id(db, token_id)
         if not api_key:
             return None
-        if api_key.expires_at and api_key.expires_at < datetime.utcnow():
+        if api_key.expires_at and api_key.expires_at < now():
             return None
         if not pwd_context.verify(secret, api_key.key_hash):
             return None

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from app.utils.timezone import now
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.models.user import User
@@ -130,7 +131,9 @@ def login(
     user = AuthService.authenticate(db, form_data.email, form_data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    if settings.ENFORCE_EMAIL_CONFIRMATION and not user.email_confirmed:
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
+    if not user.email_confirmed:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please confirm your email before logging in.")
     if user.totp_enabled:
         temp_token = create_token(
@@ -139,7 +142,7 @@ def login(
             timedelta(minutes=5),
         )
         return {"totp_required": True, "temp_token": temp_token}
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = now()
     db.commit()
     ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id), auth_method="user")
     token_expire = settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -199,7 +202,7 @@ def login_totp(
     totp = pyotp.TOTP(user.totp_secret)
     if not totp.verify(data.code, valid_window=1):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid TOTP code")
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = now()
     db.commit()
     ActivityLogService.record(db, user_id=str(user.id), action="login", entity_type="user", entity_id=str(user.id), auth_method="user")
     access_token = AuthService.create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))

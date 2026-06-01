@@ -1,5 +1,6 @@
 import re
 from datetime import datetime, timedelta
+from app.utils.timezone import now
 from typing import Optional
 
 from jose import JWTError, jwt
@@ -33,9 +34,9 @@ def validate_password_strength(password: str) -> Optional[str]:
 def create_token(data: dict, secret_key: str, algorithm: str, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = now() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = now() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, secret_key, algorithm=algorithm)
 

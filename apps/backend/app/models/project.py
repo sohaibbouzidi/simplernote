@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -14,7 +15,7 @@ class Project(Base):
     name = Column(String(256), nullable=False, index=True)
     description = Column(Text, nullable=True)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: now(), nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True, default=None)
 
     notes = relationship("Note", back_populates="project", cascade="all, delete-orphan")

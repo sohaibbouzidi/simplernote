@@ -144,14 +144,23 @@ def user_data():
 
 
 @pytest.fixture
-def registered_user(client, user_data):
+def registered_user(client, user_data, db):
     resp = client.post("/api/auth/register", json=user_data)
     assert resp.status_code == 201, resp.text
-    return resp.json()
+    yield resp.json()
+    from app.models.user import User
+    user = db.query(User).filter(User.email == user_data["email"]).first()
+    if user:
+        db.delete(user)
+        db.commit()
 
 
 @pytest.fixture
-def user_token(client, user_data, registered_user):
+def user_token(client, user_data, registered_user, db):
+    from app.models.user import User
+    user = db.query(User).filter(User.email == user_data["email"]).first()
+    user.email_confirmed = True
+    db.commit()
     resp = client.post("/api/auth/login", json={
         "email": user_data["email"],
         "password": user_data["password"],
@@ -176,10 +185,15 @@ def project_data():
 
 
 @pytest.fixture
-def user_project(client, auth_header, project_data):
+def user_project(client, auth_header, project_data, db):
     resp = client.post("/api/projects", json=project_data, headers=auth_header)
     assert resp.status_code == 201, resp.text
-    return resp.json()
+    yield resp.json()
+    from app.models.project import Project
+    project = db.query(Project).filter(Project.id == resp.json()["id"]).first()
+    if project:
+        db.delete(project)
+        db.commit()
 
 
 @pytest.fixture
@@ -222,7 +236,12 @@ def admin_setup(client, db):
     from app.models.user import User
     admin_user = db.query(User).filter(User.email == email).first()
     admin_user.role = "admin"
+    admin_user.email_confirmed = True
     db.commit()
     resp = client.post("/api/auth/login", json={"email": email, "password": password})
     token = resp.json()["access_token"]
-    return token, {"Authorization": f"Bearer {token}"}
+    yield token, {"Authorization": f"Bearer {token}"}
+    admin_user = db.query(User).filter(User.email == email).first()
+    if admin_user:
+        db.delete(admin_user)
+        db.commit()

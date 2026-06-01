@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy.orm import Session
 from app.models.ai_context import AiContext
 from app.schemas.ai_context import AiContextCreateSchema, AiContextUpdateSchema
@@ -38,5 +39,5 @@ class AiContextService:
 
     @staticmethod
     def delete(db: Session, ctx: AiContext) -> None:
-        ctx.deleted_at = datetime.utcnow()
+        ctx.deleted_at = now()
         db.commit()

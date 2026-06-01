@@ -44,6 +44,7 @@
             <span v-if="isUploading">Uploading…</span>
             <span v-else>Save profile</span>
           </button>
+          <NuxtLink to="/profile" class="mt-3 block w-full rounded-xl border border-slate-700/50 px-4 py-3 text-center text-sm font-medium text-slate-400 transition-all hover:border-slate-600 hover:text-white">Cancel</NuxtLink>
         </form>
       </div>
     </div>

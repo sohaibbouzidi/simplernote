@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -18,7 +19,7 @@ class ActivityLog(Base):
     entity_id = Column(UUID(as_uuid=True), nullable=True)
     payload = Column(JSONB, nullable=True, default=dict)
     auth_method = Column(String(16), nullable=False, default="user")
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: now(), nullable=False)
 
     project = relationship("Project", back_populates="activity_logs")
     user = relationship("User")

@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -46,7 +47,7 @@ class NoteRepository:
 
     @staticmethod
     def delete(db: Session, note: Note):
-        note.deleted_at = datetime.utcnow()
+        note.deleted_at = now()
         db.commit()
 
     @staticmethod

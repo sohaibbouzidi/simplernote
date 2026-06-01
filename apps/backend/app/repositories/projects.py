@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy.orm import Session
 
 from app.models.project import Project
@@ -41,11 +42,11 @@ class ProjectRepository:
 
     @staticmethod
     def delete(db: Session, project: Project):
-        now = datetime.utcnow()
-        project.deleted_at = now
-        db.query(Note).filter(Note.project_id == project.id, Note.deleted_at.is_(None)).update({"deleted_at": now})
-        db.query(Task).filter(Task.project_id == project.id, Task.deleted_at.is_(None)).update({"deleted_at": now})
-        db.query(AiContext).filter(AiContext.project_id == project.id, AiContext.deleted_at.is_(None)).update({"deleted_at": now})
+        _now = now()
+        project.deleted_at = _now
+        db.query(Note).filter(Note.project_id == project.id, Note.deleted_at.is_(None)).update({"deleted_at": _now})
+        db.query(Task).filter(Task.project_id == project.id, Task.deleted_at.is_(None)).update({"deleted_at": _now})
+        db.query(AiContext).filter(AiContext.project_id == project.id, AiContext.deleted_at.is_(None)).update({"deleted_at": _now})
         db.commit()
 
     @staticmethod

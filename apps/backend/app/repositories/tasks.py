@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy.orm import Session
 
 from app.models.task import Task
@@ -42,7 +43,7 @@ class TaskRepository:
 
     @staticmethod
     def delete(db: Session, task: Task):
-        task.deleted_at = datetime.utcnow()
+        task.deleted_at = now()
         db.commit()
 
     @staticmethod

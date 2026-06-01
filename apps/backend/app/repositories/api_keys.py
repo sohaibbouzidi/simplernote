@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.timezone import now
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
@@ -55,7 +56,7 @@ class APIKeyRepository:
 
     @staticmethod
     def update_last_used(db: Session, api_key: APIKey):
-        api_key.last_used_at = datetime.utcnow()
+        api_key.last_used_at = now()
         db.commit()
         db.refresh(api_key)
         return api_key

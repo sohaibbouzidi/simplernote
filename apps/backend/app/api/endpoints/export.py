@@ -1,3 +1,4 @@
+from app.utils.timezone import now
 from typing import Any
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse
@@ -32,7 +33,7 @@ def export_data(
     if format == "markdown":
         lines = [f"# Simplernote Export — {current_user.email} (project: {project_id})"]
         lines.append("")
-        lines.append(f"Generated: {__import__('datetime').datetime.utcnow().isoformat()}Z")
+        lines.append(f"Generated: {now().isoformat()}")
         lines.append("")
 
         if notes:
@@ -72,7 +73,7 @@ def export_data(
         return PlainTextResponse("\n".join(lines), media_type="text/markdown")
 
     data = {
-        "exported_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "exported_at": now().isoformat(),
         "user": current_user.email,
         "notes": [
             {

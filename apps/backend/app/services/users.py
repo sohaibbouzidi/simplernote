@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.timezone import now
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -38,7 +39,7 @@ class UserService:
         for key, value in updates.items():
             if hasattr(user, key):
                 setattr(user, key, value)
-        user.profile_updated_at = datetime.utcnow()
+        user.profile_updated_at = now()
         db.commit()
         db.refresh(user)
         return user

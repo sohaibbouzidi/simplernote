@@ -4,6 +4,7 @@ import mimetypes
 import uuid
 
 from datetime import datetime
+from app.utils.timezone import now
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 
@@ -90,7 +91,7 @@ def upload_picture(
 
     # optimistically set new picture to the S3 key in DB and schedule background upload
     current_user.picture = key
-    current_user.profile_updated_at = datetime.utcnow()
+    current_user.profile_updated_at = now()
     db.commit()
     db.refresh(current_user)
 
