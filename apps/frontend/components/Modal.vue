@@ -14,7 +14,13 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ modelValue: boolean; title: string }>()
+import { onMounted, onBeforeUnmount } from "vue"
+const props = defineProps<{ modelValue: boolean; title: string }>()
 const emit = defineEmits<{ (e: "update:modelValue", v: boolean): void }>()
 function close() { emit("update:modelValue", false) }
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape" && props.modelValue) close()
+}
+onMounted(() => window.addEventListener("keydown", onKeydown))
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 </script>

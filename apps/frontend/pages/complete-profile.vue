@@ -3,7 +3,7 @@
     <div class="w-full max-w-md animate-fade-in-up">
       <div class="mb-8 text-center">
         <NuxtLink to="/" class="mb-6 inline-flex items-center gap-2.5">
-          <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-fuchsia-400 text-sm font-bold leading-none text-white shadow-lg shadow-violet-500/20">S</span>
+          <LogoIcon :size="36" />
           <span class="font-display text-xl font-semibold tracking-tight text-white">Simplernote</span>
         </NuxtLink>
       </div>

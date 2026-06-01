@@ -49,7 +49,7 @@
     <div v-if="activeTab === 'notes'" class="space-y-4">
       <div class="flex items-center justify-between">
         <p class="text-sm text-slate-400">{{ notes.length }} note{{ notes.length !== 1 ? 's' : '' }}</p>
-        <button @click="openCreateNote" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-400">New note</button>
+        <button @click="openCreateNote" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-400">New note <span class="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium">N</span></button>
       </div>
 
       <div v-if="notesLoading" class="flex items-center justify-center py-12 text-slate-400 text-sm">
@@ -114,7 +114,7 @@
     <div v-if="activeTab === 'tasks'" class="space-y-4">
       <div class="flex items-center justify-between">
         <p class="text-sm text-slate-400">{{ tasks.length }} task{{ tasks.length !== 1 ? 's' : '' }}</p>
-        <button @click="openCreateTask" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-400">New task</button>
+        <button @click="openCreateTask" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-400">New task <span class="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium">T</span></button>
       </div>
 
       <div v-if="tasksLoading" class="flex items-center justify-center py-12 text-slate-400 text-sm">
@@ -382,16 +382,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue"
 import { useRoute, useRouter, useRuntimeConfig } from "#app"
 import { getApiInstance } from "@/services/api"
 import { useToast } from "@/composables/useToast"
+import { useKeyboardShortcuts } from "@/composables/useKeyboardShortcuts"
 
 const api = getApiInstance()
 const route = useRoute()
 const router = useRouter()
 const projectId = route.params.id as string
 const toast = useToast()
+const { register: registerShortcuts, unregisterAll: unregisterShortcuts } = useKeyboardShortcuts()
 const copied = ref(false)
 
 async function copyProjectId() {
@@ -978,5 +980,21 @@ onMounted(() => {
   if (tab === 'tasks') { fetchTasks(); tasksFetched.value = true }
   if (tab === 'settings') { fetchKeys(); keysFetched.value = true }
   if (tab === 'ai-context') { fetchAiContext(); aiContextFetched.value = true }
+  registerShortcuts([
+    {
+      keys: "n",
+      handler: () => { if (activeTab.value === "notes") openCreateNote() },
+      description: "New note",
+    },
+    {
+      keys: "t",
+      handler: () => { if (activeTab.value === "tasks") openCreateTask() },
+      description: "New task",
+    },
+  ])
+})
+
+onBeforeUnmount(() => {
+  unregisterShortcuts()
 })
 </script>

@@ -4,12 +4,13 @@
       <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4">
         <div class="flex items-center gap-4">
           <NuxtLink to="/dashboard" class="flex items-center gap-2">
-            <span class="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-bold text-white">S</span>
+            <LogoIcon :size="32" />
             <span class="hidden text-base font-semibold tracking-tight text-white sm:inline">Simplernote</span>
           </NuxtLink>
           <div class="relative hidden md:block">
             <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input v-model="searchQuery" @keydown.enter="handleSearch" placeholder="Search projects..." class="w-64 rounded-lg border border-slate-800 bg-surface py-1.5 pl-10 pr-3 text-sm text-white placeholder-slate-400 focus:border-brand-500 focus:outline-none" />
+            <input v-model="searchQuery" @keydown.enter="handleSearch" placeholder="Search projects..." class="w-64 rounded-lg border border-slate-800 bg-surface py-1.5 pl-10 pr-10 text-sm text-white placeholder-slate-400 focus:border-brand-500 focus:outline-none" />
+            <kbd class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">/</kbd>
           </div>
         </div>
 
@@ -38,6 +39,15 @@
       <slot />
     </main>
     <Toast />
+
+    <Modal v-model="showHelp" title="Keyboard Shortcuts">
+      <div class="space-y-3">
+        <div v-for="s in allShortcuts" :key="s.keys" class="flex items-center justify-between text-sm">
+          <span class="text-slate-300">{{ s.description }}</span>
+          <kbd class="rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 text-xs text-slate-400 font-mono">{{ formatKeys(s.keys) }}</kbd>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -45,10 +55,46 @@
 import { ref, onMounted, onBeforeUnmount, computed } from "vue"
 import { useRouter } from "#app"
 import { useAuthStore } from "@/stores/auth"
+import { useKeyboardShortcuts, initGlobalListener, destroyGlobalListener, getAllShortcuts } from "@/composables/useKeyboardShortcuts"
+import type { ShortcutDef } from "@/composables/useKeyboardShortcuts"
 
 const auth = useAuthStore()
 const router = useRouter()
 const searchQuery = ref("")
+const { register, unregisterAll } = useKeyboardShortcuts()
+const showHelp = ref(false)
+
+const navShortcuts: ShortcutDef[] = [
+  { keys: "g d", handler: () => router.push("/dashboard"), description: "Go to Dashboard" },
+  { keys: "g p", handler: () => router.push("/projects"), description: "Go to Projects" },
+  { keys: "g a", handler: () => router.push("/activity-logs"), description: "Go to Activity" },
+  { keys: "slash", handler: () => focusSearch(), description: "Focus search" },
+  { keys: "question", handler: () => { showHelp.value = true }, description: "Show keyboard shortcuts" },
+  { keys: "esc", handler: () => { showHelp.value = false }, description: "Close help" },
+]
+
+if (auth.isAdmin) {
+  navShortcuts.push({ keys: "g u", handler: () => router.push("/admin"), description: "Go to Admin" })
+}
+
+const searchInput = ref<HTMLInputElement | null>(null)
+
+function focusSearch() {
+  const input = document.querySelector<HTMLInputElement>('input[placeholder="Search projects..."]')
+  input?.focus()
+}
+
+onMounted(() => {
+  initGlobalListener()
+  register(navShortcuts)
+  document.addEventListener("click", handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  unregisterAll()
+  destroyGlobalListener()
+  document.removeEventListener("click", handleClickOutside)
+})
 
 const menuOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
@@ -101,4 +147,18 @@ const initials = computed(() => {
   }
   return user.email ? user.email.charAt(0).toUpperCase() : ""
 })
+
+const allShortcuts = computed(() => getAllShortcuts())
+
+function formatKeys(keys: string): string {
+  return keys
+    .split(" ")
+    .map((k) => {
+      if (k === "slash") return "/"
+      if (k === "question") return "?"
+      if (k === "esc") return "Esc"
+      return k.length === 1 ? k.toUpperCase() : k.charAt(0).toUpperCase() + k.slice(1)
+    })
+    .join(" + ")
+}
 </script>
