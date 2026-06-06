@@ -181,47 +181,122 @@
     <div v-if="activeTab === 'ai-context'" class="space-y-6">
       <div v-if="aiLoading" class="flex items-center justify-center py-12 text-sm text-slate-400">
         <svg class="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-        Loading context...
+        Loading contexts...
       </div>
 
-      <template v-else-if="aiContext && !aiEditing">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Project Context</h2>
-          <div class="flex gap-2">
-            <button @click="aiEditing = true" class="rounded-md border border-slate-800 bg-surface-50 px-3 py-1.5 text-sm text-white hover:bg-slate-700">Edit</button>
-            <button @click="confirmAiDelete" class="rounded-md border border-slate-800 bg-surface-50 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10">Delete</button>
+      <template v-else>
+        <!-- Context List -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Contexts</h2>
+            <button @click="openCreateContext" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-400">+ New</button>
+          </div>
+
+          <div v-if="aiContexts.length === 0" class="rounded-lg border border-dashed border-slate-800 p-6 text-center">
+            <p class="text-sm text-slate-400">No contexts yet. Create one to get started.</p>
+          </div>
+
+          <div v-else class="space-y-2">
+            <button
+              v-for="ctx in aiContexts"
+              :key="ctx.id"
+              @click="selectedContextId = ctx.id"
+              :class="[
+                'w-full text-left rounded-lg border px-4 py-3 transition-colors',
+                selectedContextId === ctx.id
+                  ? 'border-brand-500 bg-brand-500/10 text-white'
+                  : 'border-slate-800 bg-surface-50 text-slate-300 hover:bg-slate-700'
+              ]"
+            >
+              <div class="font-medium">{{ ctx.name }}</div>
+              <div class="text-xs text-slate-500 mt-0.5">{{ formatDate(ctx.updated_at) }}</div>
+            </button>
           </div>
         </div>
-        <div class="rounded-lg border border-slate-800 bg-surface-50 p-4">
-          <p class="whitespace-pre-wrap text-sm text-slate-300 leading-relaxed">{{ aiContext.content || "No content" }}</p>
-        </div>
-        <p class="text-xs text-slate-500">Updated {{ formatDate(aiContext.updated_at) }}</p>
+
+        <!-- Selected Context View/Edit -->
+        <template v-if="selectedContext && !aiEditing">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-slate-300">{{ selectedContext.name }}</h3>
+              <div class="flex gap-2">
+                <button @click="editContext" class="rounded-md border border-slate-800 bg-surface-50 px-3 py-1.5 text-sm text-white hover:bg-slate-700">Edit</button>
+                <button @click="confirmAiDelete" class="rounded-md border border-slate-800 bg-surface-50 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10">Delete</button>
+              </div>
+            </div>
+            <div class="rounded-lg border border-slate-800 bg-surface-50 p-4">
+              <p class="whitespace-pre-wrap text-sm text-slate-300 leading-relaxed">{{ selectedContext.content || "No content" }}</p>
+            </div>
+            <p class="text-xs text-slate-500">Updated {{ formatDate(selectedContext.updated_at) }}</p>
+          </div>
+        </template>
+
+        <!-- Edit Context Form -->
+        <template v-else-if="selectedContext && aiEditing">
+          <div class="space-y-4">
+            <h3 class="text-sm font-semibold text-slate-300">Edit: {{ selectedContext.name }}</h3>
+            <div>
+              <label class="block text-sm font-medium text-white mb-1">Name</label>
+              <input v-model="aiFormName" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-white mb-1">Content</label>
+              <textarea
+                v-model="aiFormContent"
+                rows="12"
+                placeholder="Context content..."
+                class="w-full rounded-lg border border-slate-800 bg-surface px-4 py-3 text-sm text-white outline-none placeholder:text-slate-700 focus:border-brand-500"
+              ></textarea>
+            </div>
+            <div v-if="aiError" class="text-sm text-red-400">{{ aiError }}</div>
+            <div class="flex gap-3">
+              <button @click="saveAiContext" :disabled="aiSaving" class="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">
+                <span v-if="aiSaving" class="flex items-center gap-2">
+                  <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  Saving...
+                </span>
+                <span v-else>Save</span>
+              </button>
+              <button @click="cancelAiEdit" class="rounded-md border border-slate-800 bg-surface-50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Create Context Form -->
+        <template v-else-if="showCreateContext">
+          <div class="space-y-4">
+            <h3 class="text-sm font-semibold text-slate-300">Create New Context</h3>
+            <div>
+              <label class="block text-sm font-medium text-white mb-1">Name</label>
+              <input v-model="aiFormName" placeholder="e.g. architecture, api-spec" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-white mb-1">Content</label>
+              <textarea
+                v-model="aiFormContent"
+                rows="12"
+                placeholder="Context content..."
+                class="w-full rounded-lg border border-slate-800 bg-surface px-4 py-3 text-sm text-white outline-none placeholder:text-slate-700 focus:border-brand-500"
+              ></textarea>
+            </div>
+            <div v-if="aiError" class="text-sm text-red-400">{{ aiError }}</div>
+            <div class="flex gap-3">
+              <button @click="createAiContext" :disabled="aiSaving" class="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">
+                <span v-if="aiSaving" class="flex items-center gap-2">
+                  <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  Creating...
+                </span>
+                <span v-else>Create</span>
+              </button>
+              <button @click="showCreateContext = false" class="rounded-md border border-slate-800 bg-surface-50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
+            </div>
+          </div>
+        </template>
       </template>
 
-      <template v-else>
-        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">{{ aiContext ? 'Edit Context' : 'Create Context' }}</h2>
-        <p class="text-sm text-slate-400">Provide context about this project for AI agents. This is the one and only context document for this project.</p>
-        <textarea
-          v-model="aiFormContent"
-          rows="16"
-          placeholder="Describe this project, its goals, conventions, architecture, and any other context you want AI agents to know..."
-          class="w-full rounded-lg border border-slate-800 bg-surface px-4 py-3 text-sm text-white outline-none placeholder:text-slate-700 focus:border-brand-500"
-        ></textarea>
-        <div v-if="aiError" class="text-sm text-red-400">{{ aiError }}</div>
-        <div class="flex gap-3">
-          <button @click="saveAiContext" :disabled="aiSaving" class="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">
-            <span v-if="aiSaving" class="flex items-center gap-2">
-              <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              Saving...
-            </span>
-            <span v-else>{{ aiContext ? 'Save' : 'Create' }}</span>
-          </button>
-          <button v-if="aiContext" @click="cancelAiEdit" class="rounded-md border border-slate-800 bg-surface-50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
-        </div>
-      </template>
-
-      <Modal v-model="showAiDelete" title="Delete AI Context?">
-        <p class="mb-6 text-sm text-slate-400">Delete the AI context document for this project? This cannot be undone.</p>
+      <!-- Delete Modal -->
+      <Modal v-model="showAiDelete" title="Delete Context?">
+        <p class="mb-6 text-sm text-slate-400">Delete <strong class="text-white">{{ deletingContext?.name }}</strong>? This cannot be undone.</p>
         <div class="flex justify-end gap-3">
           <button @click="showAiDelete = false" class="rounded-md border border-slate-800 bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700">Cancel</button>
           <button @click="deleteAiContext" class="rounded-md border border-slate-800 bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Delete</button>
@@ -431,7 +506,7 @@ watch(activeTab, (tab) => {
   if (tab === 'notes' && !notesFetched.value) { fetchNotes(); notesFetched.value = true }
   if (tab === 'tasks' && !tasksFetched.value) { fetchTasks(); tasksFetched.value = true }
   if (tab === 'settings' && !keysFetched.value) { fetchKeys(); keysFetched.value = true }
-  if (tab === 'ai-context' && !aiContextFetched.value) { fetchAiContext(); aiContextFetched.value = true }
+  if (tab === 'ai-context' && !aiContextFetched.value) { fetchAiContexts(); aiContextFetched.value = true }
 })
 
 const tabs = [
@@ -892,42 +967,94 @@ async function createKey() {
   } catch (e: any) { toast.error(e?.response?.data?.detail || "Error creating key") }
 }
 
-const aiContext = ref<any | null>(null)
+const aiContexts = ref<any[]>([])
+const selectedContextId = ref<string | null>(null)
 const aiLoading = ref(false)
 const aiEditing = ref(false)
 const aiSaving = ref(false)
 const aiError = ref("")
 const aiFormContent = ref("")
+const aiFormName = ref("")
 const showAiDelete = ref(false)
+const showCreateContext = ref(false)
+const deletingContext = ref<any | null>(null)
 
-async function fetchAiContext() {
+async function fetchAiContexts() {
   aiLoading.value = true
   try {
-    const res = await api.get(`/projects/${projectId}/ai-context`)
-    aiContext.value = res.data
-    aiFormContent.value = res.data.content || ""
+    const res = await api.get(`/projects/${projectId}/contexts`)
+    aiContexts.value = res.data
+    if (res.data.length > 0) {
+      selectedContextId.value = res.data[0].id
+    }
   } catch {
-    aiContext.value = null
-    aiFormContent.value = ""
+    aiContexts.value = []
+    selectedContextId.value = null
   } finally {
     aiLoading.value = false
   }
 }
 
+const selectedContext = computed(() => {
+  if (!selectedContextId.value) return null
+  return aiContexts.value.find((c: any) => c.id === selectedContextId.value)
+})
+
+function openCreateContext() {
+  aiFormName.value = ""
+  aiFormContent.value = ""
+  aiError.value = ""
+  showCreateContext.value = true
+}
+
+async function createAiContext() {
+  if (!aiFormName.value.trim()) {
+    aiError.value = "Name is required"
+    return
+  }
+
+  aiSaving.value = true
+  try {
+    const res = await api.post(`/projects/${projectId}/contexts`, {
+      name: aiFormName.value,
+      content: aiFormContent.value,
+    })
+    aiContexts.value.push(res.data)
+    selectedContextId.value = res.data.id
+    showCreateContext.value = false
+    toast.success("Context created")
+  } catch (e: any) {
+    aiError.value = e?.response?.data?.detail || "Failed to create"
+  } finally {
+    aiSaving.value = false
+  }
+}
+
+function editContext() {
+  if (!selectedContext.value) return
+  aiFormName.value = selectedContext.value.name
+  aiFormContent.value = selectedContext.value.content || ""
+  aiEditing.value = true
+}
+
 async function saveAiContext() {
+  if (!selectedContext.value) return
   aiError.value = ""
   aiSaving.value = true
   try {
-    if (aiContext.value) {
-      const res = await api.patch(`/projects/${projectId}/ai-context`, { content: aiFormContent.value })
-      aiContext.value = res.data
-      toast.success("Context saved")
-    } else {
-      const res = await api.post(`/projects/${projectId}/ai-context`, { content: aiFormContent.value })
-      aiContext.value = res.data
-      toast.success("Context created")
+    const res = await api.patch(
+      `/projects/${projectId}/contexts/${selectedContext.value.id}`,
+      {
+        name: aiFormName.value,
+        content: aiFormContent.value,
+      }
+    )
+    const idx = aiContexts.value.findIndex((c: any) => c.id === selectedContext.value.id)
+    if (idx >= 0) {
+      aiContexts.value[idx] = res.data
     }
     aiEditing.value = false
+    toast.success("Context saved")
   } catch (e: any) {
     aiError.value = e?.response?.data?.detail || "Failed to save"
   } finally {
@@ -937,20 +1064,30 @@ async function saveAiContext() {
 
 function cancelAiEdit() {
   aiEditing.value = false
-  aiFormContent.value = aiContext.value?.content || ""
+  aiFormName.value = ""
+  aiFormContent.value = ""
   aiError.value = ""
 }
 
-function confirmAiDelete() { showAiDelete.value = true }
+function confirmAiDelete() {
+  if (selectedContext.value) {
+    deletingContext.value = selectedContext.value
+    showAiDelete.value = true
+  }
+}
 
 async function deleteAiContext() {
-  if (!aiContext.value) return
+  if (!deletingContext.value) return
   try {
-    await api.delete(`/projects/${projectId}/ai-context`)
-    aiContext.value = null
-    aiFormContent.value = ""
+    await api.delete(`/projects/${projectId}/contexts/${deletingContext.value.id}`)
+    aiContexts.value = aiContexts.value.filter((c: any) => c.id !== deletingContext.value.id)
+    if (aiContexts.value.length > 0) {
+      selectedContextId.value = aiContexts.value[0].id
+    } else {
+      selectedContextId.value = null
+    }
     showAiDelete.value = false
-    toast.success("AI context deleted")
+    toast.success("Context deleted")
   } catch (e: any) {
     toast.error(e?.response?.data?.detail || "Failed to delete")
   }

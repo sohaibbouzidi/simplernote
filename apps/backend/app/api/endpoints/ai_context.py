@@ -20,6 +20,7 @@ from app.models.ai_context import AiContext
 from app.core.rate_limit import rate_limit
 
 router = APIRouter(dependencies=[Depends(rate_limit(30, 60))])
+contexts_router = APIRouter(dependencies=[Depends(rate_limit(30, 60))])
 search_router = APIRouter(dependencies=[Depends(rate_limit(30, 60))])
 
 
@@ -36,12 +37,163 @@ class SearchResultItem(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+# ===== NEW ENDPOINTS: Multiple contexts per project =====
+
+@contexts_router.get("", response_model=List[AiContextSchema], dependencies=[Depends(PermissionChecker(["read_ai_context"]))])
+def list_contexts(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """List all contexts for a project."""
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == current_user.id,
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    contexts = AiContextService.list_by_project(db, project_id, user_id=str(current_user.id))
+    return contexts
+
+
+@contexts_router.post("", response_model=AiContextSchema, status_code=status.HTTP_201_CREATED, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def create_context(
+    project_id: str,
+    data: AiContextCreateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """Create a new context for a project."""
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == current_user.id,
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    existing = AiContextService.get_by_project_and_name(db, project_id, data.name, user_id=str(current_user.id))
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A context named '{data.name}' already exists for this project")
+    
+    return AiContextService.create(db, str(current_user.id), project_id, data)
+
+
+@contexts_router.get("/{context_id}", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["read_ai_context"]))])
+def get_context(
+    project_id: str,
+    context_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """Get a specific context by ID."""
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == current_user.id,
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    ctx = AiContextService.get_by_id(db, context_id, user_id=str(current_user.id))
+    if not ctx or str(ctx.project_id) != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found")
+    return ctx
+
+
+@contexts_router.patch("/{context_id}", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def update_context(
+    project_id: str,
+    context_id: str,
+    data: AiContextUpdateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """Update a specific context."""
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == current_user.id,
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    ctx = AiContextService.get_by_id(db, context_id, user_id=str(current_user.id))
+    if not ctx or str(ctx.project_id) != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found")
+    
+    # Check if renaming to an existing context name
+    if data.name and data.name != ctx.name:
+        existing = AiContextService.get_by_project_and_name(db, project_id, data.name, user_id=str(current_user.id))
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A context named '{data.name}' already exists for this project")
+    
+    return AiContextService.update(db, ctx, data)
+
+
+@contexts_router.delete("/{context_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def delete_context(
+    project_id: str,
+    context_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """Delete (soft-delete) a specific context."""
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == current_user.id,
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    ctx = AiContextService.get_by_id(db, context_id, user_id=str(current_user.id))
+    if not ctx or str(ctx.project_id) != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found")
+    
+    AiContextService.delete(db, ctx)
+
+
+@contexts_router.post("/{context_id}/restore", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
+def restore_context(
+    project_id: str,
+    context_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user),
+):
+    """Restore a soft-deleted context."""
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == current_user.id,
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    ctx = db.query(AiContext).filter(
+        AiContext.id == context_id,
+        AiContext.project_id == project_id,
+        AiContext.created_by == current_user.id,
+        AiContext.deleted_at.isnot(None)
+    ).first()
+    if not ctx:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found or not deleted")
+    
+    return AiContextService.restore(db, ctx)
+
+
+
+# ===== DEPRECATED ENDPOINTS: For backwards compatibility (single context per project) =====
+
 @router.get("", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["read_ai_context"]))])
 def get_ai_context(
     project_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(AuthService.get_current_user),
 ):
+    """DEPRECATED: Get the default context for a project. Use /contexts instead."""
     ctx = AiContextService.get_by_project(db, project_id, user_id=str(current_user.id))
     if not ctx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No AI context for this project")
@@ -55,13 +207,17 @@ def create_ai_context(
     db: Session = Depends(get_db),
     current_user: User = Depends(AuthService.get_current_user),
 ):
+    """DEPRECATED: Create the default context for a project. Use /contexts instead."""
     existing = AiContextService.get_by_project(db, project_id, user_id=str(current_user.id))
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="AI context already exists for this project")
     project = db.query(Project).filter(Project.id == project_id, Project.created_by == current_user.id, Project.deleted_at.is_(None)).first()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    return AiContextService.create(db, str(current_user.id), project_id, data)
+    
+    # Create with "default" name for backwards compatibility
+    create_data = AiContextCreateSchema(name="default", content=data.content)
+    return AiContextService.create(db, str(current_user.id), project_id, create_data)
 
 
 @router.patch("", response_model=AiContextSchema, dependencies=[Depends(PermissionChecker(["write_ai_context"]))])
@@ -71,6 +227,7 @@ def update_ai_context(
     db: Session = Depends(get_db),
     current_user: User = Depends(AuthService.get_current_user),
 ):
+    """DEPRECATED: Update the default context for a project. Use /contexts instead."""
     ctx = AiContextService.get_by_project(db, project_id, user_id=str(current_user.id))
     if not ctx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No AI context for this project")
@@ -83,6 +240,7 @@ def delete_ai_context(
     db: Session = Depends(get_db),
     current_user: User = Depends(AuthService.get_current_user),
 ):
+    """DEPRECATED: Delete the default context for a project. Use /contexts instead."""
     ctx = AiContextService.get_by_project(db, project_id, user_id=str(current_user.id))
     if not ctx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No AI context for this project")
@@ -95,6 +253,7 @@ def import_context(
     db: Session = Depends(get_db),
     current_user: User = Depends(AuthService.get_current_user),
 ):
+    """Import notes and tasks into the default context."""
     project = db.query(Project).filter(Project.id == project_id, Project.created_by == current_user.id, Project.deleted_at.is_(None)).first()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
@@ -130,7 +289,9 @@ def import_context(
         db.commit()
         db.refresh(existing)
         return existing
-    return AiContextService.create(db, user_id, project_id, AiContextCreateSchema(content=content))
+    
+    create_data = AiContextCreateSchema(name="default", content=content)
+    return AiContextService.create(db, str(user_id), project_id, create_data)
 
 
 @search_router.get("/search", response_model=List[SearchResultItem])

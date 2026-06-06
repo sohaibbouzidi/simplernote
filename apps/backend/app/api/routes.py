@@ -17,6 +17,7 @@ api_router.include_router(projects.router, prefix="/projects", tags=["projects"]
 api_router.include_router(notes.router, prefix="/projects/{project_id}/notes", tags=["notes"], dependencies=[Depends(require_profile_complete)])
 api_router.include_router(tasks.router, prefix="/projects/{project_id}/tasks", tags=["tasks"], dependencies=[Depends(require_profile_complete)])
 api_router.include_router(ai_context.router, prefix="/projects/{project_id}/ai-context", tags=["ai-context"], dependencies=[Depends(require_profile_complete)])
+api_router.include_router(ai_context.contexts_router, prefix="/projects/{project_id}/contexts", tags=["ai-context"], dependencies=[Depends(require_profile_complete)])
 api_router.include_router(ai_context.search_router, prefix="/ai-context", tags=["ai-context"], dependencies=[Depends(require_profile_complete)])
 api_router.include_router(api_keys.router, prefix="/api-keys", tags=["api_keys"], dependencies=[Depends(require_profile_complete)])
 api_router.include_router(activity_logs.router, prefix="/activity-logs", tags=["activity_logs"], dependencies=[Depends(require_profile_complete)])

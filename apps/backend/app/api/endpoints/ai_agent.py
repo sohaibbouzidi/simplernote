@@ -37,10 +37,12 @@ class SearchResultItem(BaseModel):
 
 
 class AgentAiContextCreateSchema(BaseModel):
+    name: str = "default"
     content: str = ""
 
 
 class AgentAiContextUpdateSchema(BaseModel):
+    name: Optional[str] = None
     content: Optional[str] = None
 
 
@@ -219,12 +221,143 @@ def restore_task(
 
 # ── AI Context ──
 
+# New endpoints: Multiple contexts per project
+
+@router.get("/projects/{project_id}/contexts", response_model=List[AiContextSchema])
+def list_project_contexts(
+    project_id: str,
+    db: Session = Depends(get_db),
+    key_data: dict = Depends(get_ai_agent_key),
+):
+    """List all contexts for a project."""
+    _check_project_access(key_data, project_id)
+    _require_permission(key_data.get("permissions", {}), "read_ai_context")
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == key_data["user_id"],
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return AiContextService.list_by_project(db, project_id, user_id=key_data["user_id"])
+
+
+@router.post("/projects/{project_id}/contexts", response_model=AiContextSchema, status_code=status.HTTP_201_CREATED)
+def create_project_context_new(
+    project_id: str,
+    data: AgentAiContextCreateSchema,
+    db: Session = Depends(get_db),
+    key_data: dict = Depends(get_ai_agent_key),
+):
+    """Create a new context for a project."""
+    _check_project_access(key_data, project_id)
+    _require_permission(key_data.get("permissions", {}), "write_ai_context")
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == key_data["user_id"],
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    existing = AiContextService.get_by_project_and_name(db, project_id, data.name, user_id=key_data["user_id"])
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A context named '{data.name}' already exists")
+    
+    from app.schemas.ai_context import AiContextCreateSchema
+    return AiContextService.create(db, key_data["user_id"], project_id, AiContextCreateSchema(name=data.name, content=data.content))
+
+
+@router.get("/projects/{project_id}/contexts/{context_id}", response_model=AiContextSchema)
+def get_project_context_by_id(
+    project_id: str,
+    context_id: str,
+    db: Session = Depends(get_db),
+    key_data: dict = Depends(get_ai_agent_key),
+):
+    """Get a specific context by ID."""
+    _check_project_access(key_data, project_id)
+    _require_permission(key_data.get("permissions", {}), "read_ai_context")
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == key_data["user_id"],
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    ctx = AiContextService.get_by_id(db, context_id, user_id=key_data["user_id"])
+    if not ctx or str(ctx.project_id) != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found")
+    return ctx
+
+
+@router.patch("/projects/{project_id}/contexts/{context_id}", response_model=AiContextSchema)
+def update_project_context_by_id(
+    project_id: str,
+    context_id: str,
+    data: AgentAiContextUpdateSchema,
+    db: Session = Depends(get_db),
+    key_data: dict = Depends(get_ai_agent_key),
+):
+    """Update a specific context."""
+    _check_project_access(key_data, project_id)
+    _require_permission(key_data.get("permissions", {}), "write_ai_context")
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == key_data["user_id"],
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    ctx = AiContextService.get_by_id(db, context_id, user_id=key_data["user_id"])
+    if not ctx or str(ctx.project_id) != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found")
+    
+    if data.name and data.name != ctx.name:
+        existing = AiContextService.get_by_project_and_name(db, project_id, data.name, user_id=key_data["user_id"])
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A context named '{data.name}' already exists")
+    
+    from app.schemas.ai_context import AiContextUpdateSchema
+    return AiContextService.update(db, ctx, AiContextUpdateSchema(name=data.name, content=data.content))
+
+
+@router.delete("/projects/{project_id}/contexts/{context_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project_context_by_id(
+    project_id: str,
+    context_id: str,
+    db: Session = Depends(get_db),
+    key_data: dict = Depends(get_ai_agent_key),
+):
+    """Delete a specific context."""
+    _check_project_access(key_data, project_id)
+    _require_permission(key_data.get("permissions", {}), "write_ai_context")
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.created_by == key_data["user_id"],
+        Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    
+    ctx = AiContextService.get_by_id(db, context_id, user_id=key_data["user_id"])
+    if not ctx or str(ctx.project_id) != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found")
+    
+    AiContextService.delete(db, ctx)
+
+
+# Deprecated endpoints: For backwards compatibility (single context)
+
 @router.get("/projects/{project_id}/context", response_model=AiContextSchema)
 def get_project_context(
     project_id: str,
     db: Session = Depends(get_db),
     key_data: dict = Depends(get_ai_agent_key),
 ):
+    """DEPRECATED: Get the default context. Use /contexts instead."""
     _check_project_access(key_data, project_id)
     _require_permission(key_data.get("permissions", {}), "read_ai_context")
     ctx = AiContextService.get_by_project(db, project_id, user_id=key_data["user_id"])
@@ -240,6 +373,7 @@ def create_project_context(
     db: Session = Depends(get_db),
     key_data: dict = Depends(get_ai_agent_key),
 ):
+    """DEPRECATED: Create the default context. Use /contexts instead."""
     _check_project_access(key_data, project_id)
     _require_permission(key_data.get("permissions", {}), "write_ai_context")
     existing = AiContextService.get_by_project(db, project_id, user_id=key_data["user_id"])
@@ -249,7 +383,7 @@ def create_project_context(
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     from app.schemas.ai_context import AiContextCreateSchema
-    return AiContextService.create(db, key_data["user_id"], project_id, AiContextCreateSchema(content=data.content))
+    return AiContextService.create(db, key_data["user_id"], project_id, AiContextCreateSchema(name="default", content=data.content))
 
 
 @router.put("/projects/{project_id}/context", response_model=AiContextSchema)
@@ -259,6 +393,7 @@ def set_project_context(
     db: Session = Depends(get_db),
     key_data: dict = Depends(get_ai_agent_key),
 ):
+    """DEPRECATED: Update the default context. Use /contexts instead."""
     _check_project_access(key_data, project_id)
     _require_permission(key_data.get("permissions", {}), "write_ai_context")
     ctx = AiContextService.get_by_project(db, project_id, user_id=key_data["user_id"])
@@ -275,6 +410,7 @@ def import_project_context(
     db: Session = Depends(get_db),
     key_data: dict = Depends(get_ai_agent_key),
 ):
+    """DEPRECATED: Import notes/tasks to default context. Use /contexts instead."""
     _check_project_access(key_data, project_id)
     _require_permission(key_data.get("permissions", {}), "write_ai_context")
     project = db.query(Project).filter(Project.id == project_id, Project.created_by == key_data["user_id"], Project.deleted_at.is_(None)).first()
@@ -306,7 +442,7 @@ def import_project_context(
         from app.schemas.ai_context import AiContextUpdateSchema
         return AiContextService.update(db, existing, AiContextUpdateSchema(content=content))
     from app.schemas.ai_context import AiContextCreateSchema
-    return AiContextService.create(db, key_data["user_id"], project_id, AiContextCreateSchema(content=content))
+    return AiContextService.create(db, key_data["user_id"], project_id, AiContextCreateSchema(name="default", content=content))
 
 
 @router.delete("/projects/{project_id}/context", status_code=status.HTTP_204_NO_CONTENT)
@@ -315,6 +451,7 @@ def delete_project_context(
     db: Session = Depends(get_db),
     key_data: dict = Depends(get_ai_agent_key),
 ):
+    """DEPRECATED: Delete the default context. Use /contexts instead."""
     _check_project_access(key_data, project_id)
     _require_permission(key_data.get("permissions", {}), "write_ai_context")
     ctx = AiContextService.get_by_project(db, project_id, user_id=key_data["user_id"])
