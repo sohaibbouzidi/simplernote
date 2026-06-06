@@ -189,7 +189,7 @@
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Contexts</h2>
-            <button @click="openCreateContext" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-400">+ New</button>
+            <button type="button" @click="openCreateContext" class="rounded-md border border-slate-800 bg-brand-500 px-3 py-1.5 text-sm text-white hover:bg-brand-400">+ New</button>
           </div>
 
           <div v-if="aiContexts.length === 0" class="rounded-lg border border-dashed border-slate-800 p-6 text-center">
@@ -262,10 +262,9 @@
           </div>
         </template>
 
-        <!-- Create Context Form -->
-        <template v-else-if="showCreateContext">
-          <div class="space-y-4">
-            <h3 class="text-sm font-semibold text-slate-300">Create New Context</h3>
+        <!-- Create Context Dialog -->
+        <Modal v-model="showCreateContext" title="Create New Context">
+          <form @submit.prevent="createAiContext" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-white mb-1">Name</label>
               <input v-model="aiFormName" placeholder="e.g. architecture, api-spec" class="w-full rounded-md border border-slate-700 bg-surface px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none" />
@@ -280,18 +279,18 @@
               ></textarea>
             </div>
             <div v-if="aiError" class="text-sm text-red-400">{{ aiError }}</div>
-            <div class="flex gap-3">
-              <button @click="createAiContext" :disabled="aiSaving" class="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" @click="showCreateContext = false" class="rounded-md border border-slate-800 bg-surface-50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
+              <button type="submit" :disabled="aiSaving" class="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">
                 <span v-if="aiSaving" class="flex items-center gap-2">
                   <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                   Creating...
                 </span>
                 <span v-else>Create</span>
               </button>
-              <button @click="showCreateContext = false" class="rounded-md border border-slate-800 bg-surface-50 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Cancel</button>
             </div>
-          </div>
-        </template>
+          </form>
+        </Modal>
       </template>
 
       <!-- Delete Modal -->
