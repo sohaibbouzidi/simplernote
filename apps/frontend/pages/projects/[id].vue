@@ -585,6 +585,17 @@ All endpoints use the \`X-API-KEY\` header. Requires the corresponding read/writ
 | DELETE | \`/ai-agent/projects/{project_id}/tasks/{id}\` | Soft-delete a task |
 | PATCH | \`/ai-agent/projects/{project_id}/tasks/{id}/restore\` | Restore a deleted task |
 
+### Contexts — Full CRUD
+
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | \`/ai-agent/projects/{project_id}/contexts\` | List all contexts in a project |
+| POST | \`/ai-agent/projects/{project_id}/contexts\` | Create a context |
+| GET | \`/ai-agent/projects/{project_id}/contexts/{id}\` | Get a specific context |
+| PATCH | \`/ai-agent/projects/{project_id}/contexts/{id}\` | Update a context |
+| DELETE | \`/ai-agent/projects/{project_id}/contexts/{id}\` | Soft-delete a context |
+| POST | \`/ai-agent/projects/{project_id}/contexts/{id}/restore\` | Restore a deleted context |
+
 ### AI Context — Full Control
 
 | Method | URL | Description |
@@ -615,7 +626,7 @@ curl -H "X-API-KEY: ${apiKey}" \\
 curl -H "X-API-KEY: ${apiKey}" \\
   ${apiBase}/ai-agent/projects/${projectId}/context
 
-# Search across notes and tasks
+# Search across notes, tasks, and AI contexts
 curl -H "X-API-KEY: ${apiKey}" \\
   "${apiBase}/ai-agent/search?query=deployment"
 \`\`\`

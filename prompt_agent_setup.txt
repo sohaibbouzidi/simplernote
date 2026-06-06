@@ -125,6 +125,12 @@ curl -X POST "http://localhost:8000/api/ai-agent/projects/<project-id>/tasks" \
 
 | Method | URL                                                        |
 | ------ | ---------------------------------------------------------- |
+| GET    | `/api/ai-agent/projects/{project_id}/contexts`             |
+| POST   | `/api/ai-agent/projects/{project_id}/contexts`             |
+| GET    | `/api/ai-agent/projects/{project_id}/contexts/{id}`        |
+| PATCH  | `/api/ai-agent/projects/{project_id}/contexts/{id}`        |
+| DELETE | `/api/ai-agent/projects/{project_id}/contexts/{id}`        |
+| POST   | `/api/ai-agent/projects/{project_id}/contexts/{id}/restore` |
 | GET    | `/api/ai-agent/projects/{project_id}/context`              |
 | POST   | `/api/ai-agent/projects/{project_id}/context`              |
 | PUT    | `/api/ai-agent/projects/{project_id}/context`              |
@@ -177,11 +183,21 @@ curl -X POST "http://localhost:8000/api/ai-agent/projects/<project-id>/context/i
 
 ---
 
+# SEARCH
+
+| Method | URL |
+| ------ | --- |
+| GET    | `/api/ai-agent/search?query=...` |
+
+Searches notes, tasks, and AI contexts. Use `project_id` to scope the search to a single project.
+
+---
+
 # MEMORY-FIRST EXECUTION RULE
 
 Before any response:
 
-1. Load AI context by project_id
+1. Load AI contexts by project_id
 2. Retrieve all relevant notes
 3. Retrieve all active tasks
 4. Continue from existing state
