@@ -63,7 +63,7 @@ All endpoints scoped under `/api/ai-agent/` and authenticated via the `X-API-KEY
 | GET/POST/PATCH/DELETE | `/api/ai-agent/projects/{id}/tasks` | Tasks CRUD |
 | GET/POST/PUT/DELETE | `/api/ai-agent/projects/{id}/context` | AI context CRUD |
 | POST | `/api/ai-agent/projects/{id}/context/import` | Auto-import notes+tasks into context |
-| GET | `/api/ai-agent/search?query=...` | Search notes & tasks |
+| GET | `/api/ai-agent/search?query=...` | Search notes, tasks, and AI contexts |
 
 See `AGENTS.md` for the full endpoint reference.
 

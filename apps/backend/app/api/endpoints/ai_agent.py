@@ -504,4 +504,19 @@ def search(
                 created_at=t.created_at,
             ))
 
+    if permissions.get("read_ai_context", False):
+        context_q = db.query(AiContext).filter(
+            AiContext.created_by == user_id,
+            AiContext.deleted_at.is_(None),
+            AiContext.name.ilike(f"%{query}%") | AiContext.content.ilike(f"%{query}%"),
+        )
+        if project_id:
+            context_q = context_q.filter(AiContext.project_id == project_id)
+        for ctx in context_q.all():
+            results.append(SearchResultItem(
+                id=str(ctx.id), type="context", project_id=str(ctx.project_id),
+                title=ctx.name, content=ctx.content,
+                created_at=ctx.created_at, updated_at=ctx.updated_at,
+            ))
+
     return results

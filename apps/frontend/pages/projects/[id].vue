@@ -594,7 +594,7 @@ All endpoints use the \`X-API-KEY\` header. Requires the corresponding read/writ
 | PUT | \`/ai-agent/projects/{project_id}/context\` | Update AI context (replace content) |
 | DELETE | \`/ai-agent/projects/{project_id}/context\` | Delete AI context |
 | POST | \`/ai-agent/projects/{project_id}/context/import\` | Auto-import all notes & tasks into context |
-| GET | \`/ai-agent/search?query=...\` | Search across all notes and tasks |
+| GET | \`/ai-agent/search?query=...\` | Search across all notes, tasks, and AI contexts |
 
 ## Read Examples
 
