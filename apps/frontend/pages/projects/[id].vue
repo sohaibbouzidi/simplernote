@@ -1116,7 +1116,7 @@ onMounted(() => {
   if (tab === 'notes') { fetchNotes(); notesFetched.value = true }
   if (tab === 'tasks') { fetchTasks(); tasksFetched.value = true }
   if (tab === 'settings') { fetchKeys(); keysFetched.value = true }
-  if (tab === 'ai-context') { fetchAiContext(); aiContextFetched.value = true }
+  if (tab === 'ai-context') { fetchAiContexts(); aiContextFetched.value = true }
   registerShortcuts([
     {
       keys: "n",

@@ -1,6 +1,6 @@
-# External Memory Rule — Simplernote AI API Integration
+# External Memory Rule — Simplernote AI Agent API Integration
 
-You must use the external memory API at `http://localhost:8000` as the persistent memory, task orchestration, and AI knowledge backend for all long-running workflows, planning, coding sessions, debugging, research, and multi-agent execution.
+You must use the AI Agent API at `http://localhost:8000/api/ai-agent/` as the persistent memory, task orchestration, and AI knowledge backend for all long-running workflows, planning, coding sessions, debugging, research, and multi-agent execution.
 
 The API acts as the shared memory layer between sessions, agents, and workflows.
 
@@ -8,11 +8,11 @@ The API acts as the shared memory layer between sessions, agents, and workflows.
 
 # CONFIGURATION REQUIREMENTS
 
-Before any API usage, the following must be defined:
+Before any API usage, the following must be defined and injected by the user:
 
 ```bash id="cfg1"
-SIMPLERNOTE_API_KEY="sk_78b8c6f8-668a-49b4-bef2-daadd0dbfec3.bJ_JujzG6U1tpsI2moMRCtfBkmk3xQ3i8_QHYNxpiZ8"
-PROJECT_ID="d0b1c152-4b7c-4b60-a5ee-6ea73374a02d"
+SIMPLERNOTE_API_KEY="sk_..."  # request from user
+PROJECT_ID="..."              # request from user
 ```
 
 ### Validation Rule
@@ -27,17 +27,17 @@ Before executing ANY API operation:
 
 # AUTHENTICATION
 
-All requests must include:
+All requests must use the **X-API-KEY** header (not Bearer):
 
 ```http id="auth1"
-Authorization: Bearer sk_78b8c6f8-668a-49b4-bef2-daadd0dbfec3.bJ_JujzG6U1tpsI2moMRCtfBkmk3xQ3i8_QHYNxpiZ8
+X-API-KEY: <your-api-key>
 Content-Type: application/json
 ```
 
 Base URL:
 
 ```text id="base1"
-http://localhost:8000
+http://localhost:8000/api/ai-agent
 ```
 
 ---
@@ -48,19 +48,19 @@ http://localhost:8000
 
 ## Endpoints
 
-| Method | URL               |
-| ------ | ----------------- |
-| GET    | `/api/notes/`     |
-| POST   | `/api/notes/`     |
-| GET    | `/api/notes/{id}` |
-| PATCH  | `/api/notes/{id}` |
-| DELETE | `/api/notes/{id}` |
+| Method | URL                                                  |
+| ------ | ---------------------------------------------------- |
+| GET    | `/api/ai-agent/projects/{project_id}/notes`          |
+| POST   | `/api/ai-agent/projects/{project_id}/notes`          |
+| GET    | `/api/ai-agent/projects/{project_id}/notes/{id}`     |
+| PATCH  | `/api/ai-agent/projects/{project_id}/notes/{id}`     |
+| DELETE | `/api/ai-agent/projects/{project_id}/notes/{id}`     |
 
 ## Example Usage
 
 ```bash id="notes1"
-curl -H "Authorization: Bearer $TOKEN" \
-http://localhost:8000/api/notes/
+curl -H "X-API-KEY: <your-api-key>" \
+http://localhost:8000/api/ai-agent/projects/<project-id>/notes
 ```
 
 ---
@@ -68,11 +68,10 @@ http://localhost:8000/api/notes/
 ## Create Note Example
 
 ```bash id="notes2"
-curl -X POST "http://localhost:8000/api/notes/" \
--H "Authorization: Bearer $TOKEN" \
+curl -X POST "http://localhost:8000/api/ai-agent/projects/<project-id>/notes" \
+-H "X-API-KEY: <your-api-key>" \
 -H "Content-Type: application/json" \
 -d '{
-  "project_id": "d0b1c152-4b7c-4b60-a5ee-6ea73374a02d",
   "title": "Deployment Steps",
   "content": "1. Build image\n2. Push registry\n3. Deploy manifests",
   "note_type": "documentation",
@@ -86,19 +85,20 @@ curl -X POST "http://localhost:8000/api/notes/" \
 
 ## Endpoints
 
-| Method | URL               |
-| ------ | ----------------- |
-| GET    | `/api/tasks/`     |
-| POST   | `/api/tasks/`     |
-| GET    | `/api/tasks/{id}` |
-| PATCH  | `/api/tasks/{id}` |
-| DELETE | `/api/tasks/{id}` |
+| Method | URL                                                         |
+| ------ | ----------------------------------------------------------- |
+| GET    | `/api/ai-agent/projects/{project_id}/tasks`                 |
+| POST   | `/api/ai-agent/projects/{project_id}/tasks`                 |
+| GET    | `/api/ai-agent/projects/{project_id}/tasks/{id}`            |
+| PATCH  | `/api/ai-agent/projects/{project_id}/tasks/{id}`            |
+| DELETE | `/api/ai-agent/projects/{project_id}/tasks/{id}`            |
+| PATCH  | `/api/ai-agent/projects/{project_id}/tasks/{id}/restore`    |
 
 ## Example Usage
 
 ```bash id="tasks1"
-curl -H "Authorization: Bearer $TOKEN" \
-http://localhost:8000/api/tasks/
+curl -H "X-API-KEY: <your-api-key>" \
+http://localhost:8000/api/ai-agent/projects/<project-id>/tasks
 ```
 
 ---
@@ -106,16 +106,14 @@ http://localhost:8000/api/tasks/
 ## Create Task Example
 
 ```bash id="tasks2"
-curl -X POST "http://localhost:8000/api/tasks/" \
--H "Authorization: Bearer $TOKEN" \
+curl -X POST "http://localhost:8000/api/ai-agent/projects/<project-id>/tasks" \
+-H "X-API-KEY: <your-api-key>" \
 -H "Content-Type: application/json" \
 -d '{
-  "project_id": "d0b1c152-4b7c-4b60-a5ee-6ea73374a02d",
   "title": "Review PR #42",
   "description": "Check auth middleware changes",
   "status": "todo",
-  "priority": "high",
-  "assigned_agent": "code-reviewer"
+  "priority": "high"
 }'
 ```
 
@@ -125,20 +123,20 @@ curl -X POST "http://localhost:8000/api/tasks/" \
 
 ## Endpoints
 
-| Method | URL                                    |
-| ------ | -------------------------------------- |
-| GET    | `/api/ai-context/project/{project_id}` |
-| POST   | `/api/ai-context/`                     |
-| PATCH  | `/api/ai-context/{id}`                 |
-| DELETE | `/api/ai-context/{id}`                 |
+| Method | URL                                                        |
+| ------ | ---------------------------------------------------------- |
+| GET    | `/api/ai-agent/projects/{project_id}/context`              |
+| POST   | `/api/ai-agent/projects/{project_id}/context`              |
+| PUT    | `/api/ai-agent/projects/{project_id}/context`              |
+| DELETE | `/api/ai-agent/projects/{project_id}/context`              |
 
 ---
 
 ## Get Project Context
 
 ```bash id="ctx1"
-curl -H "Authorization: Bearer $TOKEN" \
-http://localhost:8000/api/ai-context/project/d0b1c152-4b7c-4b60-a5ee-6ea73374a02d
+curl -H "X-API-KEY: <your-api-key>" \
+http://localhost:8000/api/ai-agent/projects/<project-id>/context
 ```
 
 ---
@@ -146,17 +144,35 @@ http://localhost:8000/api/ai-context/project/d0b1c152-4b7c-4b60-a5ee-6ea73374a02
 ## Update Context Example
 
 ```bash id="ctx2"
-curl -X POST "http://localhost:8000/api/ai-context/" \
--H "Authorization: Bearer $TOKEN" \
+curl -X PUT "http://localhost:8000/api/ai-agent/projects/<project-id>/context" \
+-H "X-API-KEY: <your-api-key>" \
 -H "Content-Type: application/json" \
 -d '{
-  "project_id": "d0b1c152-4b7c-4b60-a5ee-6ea73374a02d",
-  "current_focus": "system architecture",
-  "state": {
-    "backend": "in_progress",
-    "tasks_sync": "active"
-  }
+  "content": "# Current Focus\n\nWorking on system architecture."
 }'
+```
+
+---
+
+## Create Context Example
+
+```bash id="ctx3"
+curl -X POST "http://localhost:8000/api/ai-agent/projects/<project-id>/context" \
+-H "X-API-KEY: <your-api-key>" \
+-H "Content-Type: application/json" \
+-d '{
+  "content": "# Project Context\n\nInitial project setup."
+}'
+```
+
+---
+
+## Auto-Import Context (Notes + Tasks)
+
+```bash id="ctx4"
+curl -X POST "http://localhost:8000/api/ai-agent/projects/<project-id>/context/import" \
+-H "X-API-KEY: <your-api-key>" \
+-H "Content-Type: application/json"
 ```
 
 ---
