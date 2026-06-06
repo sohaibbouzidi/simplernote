@@ -11,6 +11,8 @@ RUN addgroup --system --gid 1001 app && \
     adduser --system --uid 1001 --gid 1001 app
 COPY --from=builder /install /usr/local
 COPY ./app ./app
+COPY alembic.ini .
+COPY alembic ./alembic
 RUN mkdir -p /app/logs && chown -R app:app /app
 USER app
 ENV PYTHONUNBUFFERED=1
